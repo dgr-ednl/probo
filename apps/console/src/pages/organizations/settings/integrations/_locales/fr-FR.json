@@ -11,8 +11,12 @@
     "emptyAvailable": "Tous les fournisseurs disponibles sont déjà connectés.",
     "comingSoon": "Bientôt disponible",
     "connectElsewhere": "Pour connecter un fournisseur, ouvrez les <connections>connexions des revues d'accès</connections>.",
+    "googleDrive": {
+      "description": "Liez et synchronisez des documents directement depuis Google Drive"
+    },
     "actions": {
-      "manage": "Gérer"
+      "manage": "Gérer",
+      "connect": "Connecter"
     }
   },
   "detailsPage": {

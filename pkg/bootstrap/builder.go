@@ -562,6 +562,20 @@ func (b *Builder) Build() (*probodconfig.FullConfig, error) {
 		)
 	}
 
+	if googleDriveClientID := b.resolver.getEnv("PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_ID"); googleDriveClientID != "" {
+		cfg.Probod.Connectors = append(
+			cfg.Probod.Connectors,
+			probodconfig.ConnectorConfig{
+				Provider: "GOOGLE_DRIVE",
+				Protocol: "oauth2",
+				RawConfig: probodconfig.ConnectorConfigOAuth2{
+					ClientID:     googleDriveClientID,
+					ClientSecret: b.resolver.getEnv("PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_SECRET"),
+				},
+			},
+		)
+	}
+
 	if microsoft365ClientID := b.resolver.getEnv("PROBOD_CONNECTOR_MICROSOFT_365_CLIENT_ID"); microsoft365ClientID != "" {
 		cfg.Probod.Connectors = append(
 			cfg.Probod.Connectors,
@@ -802,6 +816,7 @@ func (b *Builder) validateRequired() error {
 		{"CONNECTOR_INTERCOM", []string{"CLIENT_SECRET"}},
 		{"CONNECTOR_BREX", []string{"CLIENT_SECRET"}},
 		{"CONNECTOR_GOOGLE_WORKSPACE", []string{"CLIENT_SECRET"}},
+		{"CONNECTOR_GOOGLE_DRIVE", []string{"CLIENT_SECRET"}},
 		{"CONNECTOR_MICROSOFT_365", []string{"CLIENT_SECRET"}},
 		{"CONNECTOR_GITLAB", []string{"CLIENT_SECRET"}},
 		{"CONNECTOR_BITBUCKET", []string{"CLIENT_SECRET"}},

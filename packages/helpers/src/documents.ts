@@ -47,7 +47,7 @@ export function getDocumentTypeLabel(t: Translator, type: string) {
     }
 }
 
-export const documentWriteModes = ["AUTHORED", "GENERATED"] as const;
+export const documentWriteModes = ["AUTHORED", "GENERATED", "GOOGLE_DRIVE"] as const;
 
 export function getDocumentWriteModeLabel(t: Translator, writeMode: string) {
     switch (writeMode) {
@@ -55,6 +55,8 @@ export function getDocumentWriteModeLabel(t: Translator, writeMode: string) {
             return t("helpers.documentWriteMode.authored");
         case "GENERATED":
             return t("helpers.documentWriteMode.generated");
+        case "GOOGLE_DRIVE":
+            return t("helpers.documentWriteMode.googleDrive");
     }
 }
 

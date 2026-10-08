@@ -11,8 +11,12 @@
     "emptyAvailable": "Every available vendor is already connected.",
     "comingSoon": "Coming soon",
     "connectElsewhere": "To connect a vendor, open <connections>access review connections</connections>.",
+    "googleDrive": {
+      "description": "Link and sync documents directly from Google Drive"
+    },
     "actions": {
-      "manage": "Manage"
+      "manage": "Manage",
+      "connect": "Connect"
     }
   },
   "detailsPage": {

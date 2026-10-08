@@ -93,6 +93,7 @@ func NewBuiltinRegistryWith(opts ...Option) (*Registry, error) {
 		gitlabRegistration(),
 		googleAnalyticsRegistration(),
 		googleWorkspaceRegistration(),
+		googleDriveRegistration(),
 		herokuRegistration(),
 		hubspotRegistration(),
 		incidentioRegistration(),

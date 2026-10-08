@@ -41,6 +41,8 @@ import * as getApprovalQuorumOp from './getApprovalQuorum.operation';
 import * as getAllApprovalQuorumsOp from './getAllApprovalQuorums.operation';
 import * as getApprovalDecisionOp from './getApprovalDecision.operation';
 import * as getAllApprovalDecisionsOp from './getAllApprovalDecisions.operation';
+import * as linkGoogleDriveOp from './linkGoogleDrive.operation';
+import * as syncGoogleDriveOp from './syncGoogleDrive.operation';
 
 export const description: INodeProperties[] = [
 	{
@@ -151,6 +153,12 @@ export const description: INodeProperties[] = [
 				action: 'Get a document version',
 			},
 			{
+				name: 'Link Google Drive Document',
+				value: 'linkGoogleDrive',
+				description: 'Link a Google Drive file as a document',
+				action: 'Link a Google Drive document',
+			},
+			{
 				name: 'Publish',
 				value: 'publish',
 				description: 'Publish a draft document, request approval, or publish as minor',
@@ -161,6 +169,12 @@ export const description: INodeProperties[] = [
 				value: 'requestSignature',
 				description: 'Request a signature for a document version',
 				action: 'Request a document version signature',
+			},
+			{
+				name: 'Sync Google Drive Document',
+				value: 'syncGoogleDrive',
+				description: 'Sync latest content and PDF from Google Drive for a linked document',
+				action: 'Sync a Google Drive document',
 			},
 			{
 				name: 'Unarchive',
@@ -211,6 +225,8 @@ export const description: INodeProperties[] = [
 	...getAllApprovalQuorumsOp.description,
 	...getApprovalDecisionOp.description,
 	...getAllApprovalDecisionsOp.description,
+	...linkGoogleDriveOp.description,
+	...syncGoogleDriveOp.description,
 ];
 
 export {
@@ -236,4 +252,6 @@ export {
 	getAllApprovalQuorumsOp as getAllApprovalQuorums,
 	getApprovalDecisionOp as getApprovalDecision,
 	getAllApprovalDecisionsOp as getAllApprovalDecisions,
+	linkGoogleDriveOp as linkGoogleDrive,
+	syncGoogleDriveOp as syncGoogleDrive,
 };

@@ -27,11 +27,13 @@ import (
 	"go.probo.inc/probo/pkg/cmd/document/create"
 	"go.probo.inc/probo/pkg/cmd/document/delete"
 	deletedraft "go.probo.inc/probo/pkg/cmd/document/delete-draft"
+	linkgoogledrive "go.probo.inc/probo/pkg/cmd/document/link-google-drive"
 	"go.probo.inc/probo/pkg/cmd/document/list"
 	listapprovaldecisions "go.probo.inc/probo/pkg/cmd/document/list-approval-decisions"
 	listapprovalquorums "go.probo.inc/probo/pkg/cmd/document/list-approval-quorums"
 	listversions "go.probo.inc/probo/pkg/cmd/document/list-versions"
 	"go.probo.inc/probo/pkg/cmd/document/publish"
+	syncgoogledrive "go.probo.inc/probo/pkg/cmd/document/sync-google-drive"
 	"go.probo.inc/probo/pkg/cmd/document/unarchive"
 	"go.probo.inc/probo/pkg/cmd/document/update"
 	"go.probo.inc/probo/pkg/cmd/document/view"
@@ -48,6 +50,8 @@ func NewCmdDocument(f *cmdutil.Factory) *cobra.Command {
 
 	cmd.AddCommand(list.NewCmdList(f))
 	cmd.AddCommand(create.NewCmdCreate(f))
+	cmd.AddCommand(linkgoogledrive.NewCmdLinkGoogleDrive(f))
+	cmd.AddCommand(syncgoogledrive.NewCmdSyncGoogleDrive(f))
 	cmd.AddCommand(view.NewCmdView(f))
 	cmd.AddCommand(update.NewCmdUpdate(f))
 	cmd.AddCommand(delete.NewCmdDelete(f))

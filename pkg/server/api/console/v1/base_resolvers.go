@@ -963,6 +963,48 @@ func (r *queryResolver) ProbotIdentityBindPreview(ctx context.Context, token str
 	return types.NewProbotIdentityBindPreview(*preview), nil
 }
 
+// GoogleDriveFiles is the resolver for the googleDriveFiles field.
+func (r *queryResolver) GoogleDriveFiles(ctx context.Context, connectorID gid.GID, query *string, pageSize *int, pageToken *string) (*types.GoogleDriveFileList, error) {
+	scope, err := r.authorize(ctx, connectorID, probo.ActionConnectorGet)
+	if err != nil {
+		return nil, err
+	}
+
+	var size int64 = 20
+	if pageSize != nil {
+		size = int64(*pageSize)
+	}
+
+	result, err := r.probo.GoogleDrive.SearchFiles(ctx, scope, connectorID, query, size, pageToken)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot search Google Drive files", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	files := make([]*types.GoogleDriveFile, len(result.Files))
+	for i, f := range result.Files {
+		files[i] = &types.GoogleDriveFile{
+			ID:           f.ID,
+			Name:         f.Name,
+			MimeType:     f.MimeType,
+			WebViewLink:  f.WebViewLink,
+			IconLink:     f.IconLink,
+			ModifiedTime: f.ModifiedTime,
+			Size:         f.Size,
+		}
+	}
+
+	var nextToken *string
+	if result.NextPageToken != "" {
+		nextToken = &result.NextPageToken
+	}
+
+	return &types.GoogleDriveFileList{
+		Files:         files,
+		NextPageToken: nextToken,
+	}, nil
+}
+
 // Mutation returns schema.MutationResolver implementation.
 func (r *Resolver) Mutation() schema.MutationResolver { return &mutationResolver{r} }
 

@@ -30,8 +30,9 @@ type (
 )
 
 const (
-	DocumentWriteModeAuthored  DocumentWriteMode = "AUTHORED"
-	DocumentWriteModeGenerated DocumentWriteMode = "GENERATED"
+	DocumentWriteModeAuthored    DocumentWriteMode = "AUTHORED"
+	DocumentWriteModeGenerated   DocumentWriteMode = "GENERATED"
+	DocumentWriteModeGoogleDrive DocumentWriteMode = "GOOGLE_DRIVE"
 )
 
 var (
@@ -44,6 +45,7 @@ func DocumentWriteModes() []DocumentWriteMode {
 	return []DocumentWriteMode{
 		DocumentWriteModeAuthored,
 		DocumentWriteModeGenerated,
+		DocumentWriteModeGoogleDrive,
 	}
 }
 
@@ -51,7 +53,8 @@ func (v DocumentWriteMode) IsValid() bool {
 	switch v {
 	case
 		DocumentWriteModeAuthored,
-		DocumentWriteModeGenerated:
+		DocumentWriteModeGenerated,
+		DocumentWriteModeGoogleDrive:
 		return true
 	}
 

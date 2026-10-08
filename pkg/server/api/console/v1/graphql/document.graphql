@@ -67,6 +67,10 @@ enum DocumentWriteMode
         @goEnum(
             value: "go.probo.inc/probo/pkg/coredata.DocumentWriteModeGenerated"
         )
+    GOOGLE_DRIVE
+        @goEnum(
+            value: "go.probo.inc/probo/pkg/coredata.DocumentWriteModeGoogleDrive"
+        )
 }
 
 enum DocumentClassification
@@ -309,6 +313,7 @@ type Document implements Node {
     writeMode: DocumentWriteMode!
     status: DocumentStatus!
     archivedAt: Datetime
+    externalLink: DocumentExternalLink @goField(forceResolver: true)
 
     createdAt: Datetime!
     updatedAt: Datetime!
@@ -551,6 +556,12 @@ type EmployeeDocumentVersionEdge
 
 extend type Mutation {
     createDocument(input: CreateDocumentInput!): CreateDocumentPayload!
+    linkGoogleDriveDocument(
+        input: LinkGoogleDriveDocumentInput!
+    ): LinkGoogleDriveDocumentPayload!
+    syncGoogleDriveDocument(
+        input: SyncGoogleDriveDocumentInput!
+    ): SyncGoogleDriveDocumentPayload!
     updateDocument(input: UpdateDocumentInput!): UpdateDocumentPayload!
     deleteDocumentDraft(input: DeleteDocumentDraftInput!): DeleteDocumentDraftPayload!
     archiveDocument(input: ArchiveDocumentInput!): ArchiveDocumentPayload!
@@ -799,4 +810,51 @@ type ApproveDocumentVersionPayload {
 
 type RejectDocumentVersionPayload {
     approvalDecision: DocumentVersionApprovalDecision!
+}
+
+type DocumentExternalLink {
+    provider: ConnectorProvider!
+    externalId: String!
+    externalUrl: String!
+    mimeType: String
+    lastSyncedAt: Datetime!
+    createdAt: Datetime!
+    updatedAt: Datetime!
+}
+
+type GoogleDriveFile {
+    id: String!
+    name: String!
+    mimeType: String!
+    webViewLink: String!
+    iconLink: String!
+    modifiedTime: Datetime!
+    size: BigInt!
+}
+
+type GoogleDriveFileList {
+    files: [GoogleDriveFile!]!
+    nextPageToken: String
+}
+
+input LinkGoogleDriveDocumentInput {
+    organizationId: ID!
+    connectorId: ID!
+    fileId: String!
+    title: String
+}
+
+type LinkGoogleDriveDocumentPayload {
+    documentEdge: DocumentEdge!
+    document: Document!
+}
+
+input SyncGoogleDriveDocumentInput {
+    documentId: ID!
+}
+
+type SyncGoogleDriveDocumentPayload {
+    document: Document!
+    documentVersion: DocumentVersion
+    documentVersionEdge: DocumentVersionEdge
 }

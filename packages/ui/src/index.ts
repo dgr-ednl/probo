@@ -33,6 +33,7 @@ export {
 // Atoms
 export * from "./Atoms/Icons";
 export { Logo } from "./Atoms/Logo/Logo";
+export { GoogleLogo } from "./v2/GoogleLogo/GoogleLogo";
 export { FrameworkLogo } from "./Atoms/FrameworkLogo/FrameworkLogo";
 export { SidebarItem } from "./Atoms/Sidebar/SidebarItem";
 export { Button } from "./Atoms/Button/Button";

@@ -178,6 +178,16 @@ func TestBuilder_Build_MissingRequiredEnvVars(t *testing.T) {
 			wantMissing: []string{"PROBOD_CONNECTOR_GOOGLE_WORKSPACE_CLIENT_SECRET"},
 		},
 		{
+			name: "google drive connector missing required fields",
+			env: map[string]string{
+				"PROBOD_ENCRYPTION_KEY":                   "key",
+				"PROBOD_AUTH_COOKIE_SECRET":               "secret",
+				"PROBOD_AUTH_PASSWORD_PEPPER":             "pepper",
+				"PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_ID": "client-id",
+			},
+			wantMissing: []string{"PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_SECRET"},
+		},
+		{
 			name: "microsoft 365 connector missing required fields",
 			env: map[string]string{
 				"PROBOD_ENCRYPTION_KEY":                    "key",
@@ -752,6 +762,27 @@ func TestBuilder_Build_GoogleWorkspaceConnector(t *testing.T) {
 	rawConfig := connector.RawConfig.(probodconfig.ConnectorConfigOAuth2)
 	assert.Equal(t, "gw-client-id", rawConfig.ClientID)
 	assert.Equal(t, "gw-client-secret", rawConfig.ClientSecret)
+}
+
+func TestBuilder_Build_GoogleDriveConnector(t *testing.T) {
+	env := requiredEnv()
+	env["PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_ID"] = "gd-client-id"
+	env["PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_SECRET"] = "gd-client-secret"
+
+	b := NewBuilder(NewResolver(mockEnv(env)))
+	b.samlCertificate = "test-cert"
+	b.samlPrivateKey = testSigningKeyPEM()
+
+	cfg, err := b.Build()
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Probod.Connectors, 1)
+	connector := cfg.Probod.Connectors[0]
+	assert.Equal(t, "GOOGLE_DRIVE", connector.Provider)
+	assert.Equal(t, "oauth2", string(connector.Protocol))
+	rawConfig := connector.RawConfig.(probodconfig.ConnectorConfigOAuth2)
+	assert.Equal(t, "gd-client-id", rawConfig.ClientID)
+	assert.Equal(t, "gd-client-secret", rawConfig.ClientSecret)
 }
 
 func TestBuilder_Build_GitHubAppConnector(t *testing.T) {

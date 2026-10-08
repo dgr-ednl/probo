@@ -118,8 +118,51 @@
     "pageTitle": "Documents",
     "title": "Documents",
     "description": "Manage your organization's documents",
-    "actions": { "new": "New document" },
+    "actions": { "new": "New document", "linkGoogleDrive": "Link from Google Drive" },
     "tabs": { "active": "Active", "archived": "Archived" }
+  },
+  "linkGoogleDriveDocumentDialog": {
+    "breadcrumbs": { "documents": "Documents", "linkGoogleDrive": "Link from Google Drive" },
+    "fields": {
+      "connector": "Google Drive Account",
+      "searchFiles": "Search Google Drive",
+      "searchPlaceholder": "Search files by name...",
+      "documentTitle": "Document title",
+      "titlePlaceholder": "Document title in Probo",
+      "approversPlaceholder": "Add approvers..."
+    },
+    "properties": {
+      "title": "Properties",
+      "status": "Status",
+      "source": "Source",
+      "type": "Type",
+      "classification": "Classification",
+      "approvers": "Approvers"
+    },
+    "status": { "draft": "Draft" },
+    "validation": {
+      "titleRequired": "Title is required",
+      "fileRequired": "Please select a file to link"
+    },
+    "messages": {
+      "successTitle": "Success",
+      "linked": "Document linked successfully."
+    },
+    "errors": {
+      "title": "Error",
+      "link": "Failed to link document from Google Drive"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "link": "Link document",
+      "previewInDrive": "Open in Google Drive"
+    },
+    "emptyFiles": "No files found. Try a different search term.",
+    "notConnected": {
+      "title": "Google Drive not connected",
+      "description": "Connect your Google Drive account in settings to browse and link documents.",
+      "connectAction": "Connect Google Drive"
+    }
   },
   "createDocumentDialog": {
     "breadcrumbs": { "documents": "Documents", "new": "New document" },
@@ -213,7 +256,7 @@
   },
   "documentList": {
     "filters": { "searchPlaceholder": "Search documents by title...", "allSources": "All sources", "allTypes": "All types", "allClassifications": "All classifications" },
-    "writeModes": { "authored": "Authored", "generated": "Generated" },
+    "writeModes": { "authored": "Authored", "generated": "Generated", "google_drive": "Google Drive" },
     "documentTypes": {
       "other": "Other",
       "governance": "Governance",
@@ -293,7 +336,16 @@
   },
   "documentDescriptionPage": {
     "messages": { "successTitle": "Success", "saved": "Content saved" },
-    "errors": { "title": "Error", "save": "Content not saved" }
+    "errors": { "title": "Error", "save": "Content not saved" },
+    "googleDrive": {
+      "syncedWithDrive": "Synced with Google Drive",
+      "readOnly": "Read only",
+      "lastSynced": "Last synced {{time}}",
+      "openInDrive": "Open in Google Drive",
+      "syncNow": "Sync now",
+      "syncSuccess": "Document synced with Google Drive",
+      "syncError": "Failed to sync document with Google Drive"
+    }
   },
   "documentSignaturesPage": {
     "filter": { "label": "Filter by state:" },

@@ -116,6 +116,7 @@ type (
 		TransferImpactAssessments             *TransferImpactAssessmentService
 		StatementsOfApplicability             *StatementOfApplicabilityService
 		GeneratedDocuments                    *GeneratedDocumentService
+		GoogleDrive                           *GoogleDriveService
 		Files                                 *FileService
 		LogExports                            ExportService
 	}
@@ -229,6 +230,7 @@ func NewService(
 	svc.TransferImpactAssessments = &TransferImpactAssessmentService{svc: svc}
 	svc.StatementsOfApplicability = &StatementOfApplicabilityService{svc: svc}
 	svc.GeneratedDocuments = &GeneratedDocumentService{svc: svc}
+	svc.GoogleDrive = &GoogleDriveService{svc: svc}
 	svc.Files = &FileService{svc: svc}
 	svc.LogExports = iamService.LogExports
 

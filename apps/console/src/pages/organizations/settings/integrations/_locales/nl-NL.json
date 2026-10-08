@@ -11,8 +11,12 @@
     "emptyAvailable": "Alle beschikbare leveranciers zijn al verbonden.",
     "comingSoon": "Binnenkort beschikbaar",
     "connectElsewhere": "Om een leverancier te verbinden, open <connections>verbindingen voor toegangsbeoordelingen</connections>.",
+    "googleDrive": {
+      "description": "Koppel en synchroniseer documenten rechtstreeks vanuit Google Drive"
+    },
     "actions": {
-      "manage": "Beheren"
+      "manage": "Beheren",
+      "connect": "Verbinden"
     }
   },
   "detailsPage": {

@@ -31,6 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.probo.inc/probo/e2e/internal/factory"
 	"go.probo.inc/probo/e2e/internal/testutil"
+	"go.probo.inc/probo/pkg/coredata"
+	"go.probo.inc/probo/pkg/gid"
 )
 
 func TestDocument_Create(t *testing.T) {
@@ -1088,3 +1090,118 @@ func TestDocument_Ordering(t *testing.T) {
 		testutil.AssertTimesOrderedDescending(t, times, "createdAt")
 	})
 }
+
+func TestDocument_LinkGoogleDrive_Validation(t *testing.T) {
+	t.Parallel()
+	owner := testutil.NewClient(t, testutil.RoleOwner)
+
+	tests := []struct {
+		name              string
+		input             map[string]any
+		wantErrorContains string
+	}{
+		{
+			name: "missing organizationId",
+			input: map[string]any{
+				"connectorId":    gid.New(owner.GetOrganizationID().TenantID(), coredata.ConnectorEntityType).String(),
+				"fileId":         "12345",
+				"title":          "Google Doc",
+				"documentType":   "POLICY",
+				"classification": "INTERNAL",
+			},
+			wantErrorContains: "organizationId",
+		},
+		{
+			name: "missing fileId",
+			input: map[string]any{
+				"organizationId": owner.GetOrganizationID().String(),
+				"connectorId":    gid.New(owner.GetOrganizationID().TenantID(), coredata.ConnectorEntityType).String(),
+				"title":          "Google Doc",
+				"documentType":   "POLICY",
+				"classification": "INTERNAL",
+			},
+			wantErrorContains: "fileId",
+		},
+		{
+			name: "non-existent connector",
+			input: map[string]any{
+				"organizationId": owner.GetOrganizationID().String(),
+				"connectorId":    gid.New(owner.GetOrganizationID().TenantID(), coredata.ConnectorEntityType).String(),
+				"fileId":         "12345",
+				"title":          "Google Doc",
+				"documentType":   "POLICY",
+				"classification": "INTERNAL",
+			},
+			wantErrorContains: "cannot find connector",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := `
+				mutation LinkGoogleDriveDocument($input: LinkGoogleDriveDocumentInput!) {
+					linkGoogleDriveDocument(input: $input) {
+						document {
+							id
+						}
+					}
+				}
+			`
+
+			var result any
+			err := owner.Execute(query, map[string]any{"input": tt.input}, &result)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErrorContains)
+		})
+	}
+}
+
+func TestDocument_SyncGoogleDrive_Validation(t *testing.T) {
+	t.Parallel()
+	owner := testutil.NewClient(t, testutil.RoleOwner)
+
+	t.Run("non-existent document", func(t *testing.T) {
+		query := `
+			mutation SyncGoogleDriveDocument($input: SyncGoogleDriveDocumentInput!) {
+				syncGoogleDriveDocument(input: $input) {
+					document {
+						id
+					}
+				}
+			}
+		`
+
+		var result any
+		err := owner.Execute(query, map[string]any{
+			"input": map[string]any{
+				"documentId": gid.New(owner.GetOrganizationID().TenantID(), coredata.DocumentEntityType).String(),
+			},
+		}, &result)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot find document")
+	})
+
+	t.Run("non-google-drive document", func(t *testing.T) {
+		docID := factory.NewDocument(owner).WithTitle("Authored Doc").Create()
+
+		query := `
+			mutation SyncGoogleDriveDocument($input: SyncGoogleDriveDocumentInput!) {
+				syncGoogleDriveDocument(input: $input) {
+					document {
+						id
+					}
+				}
+			}
+		`
+
+		var result any
+		err := owner.Execute(query, map[string]any{
+			"input": map[string]any{
+				"documentId": docID,
+			},
+		}, &result)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not linked to Google Drive")
+	})
+}
+

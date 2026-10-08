@@ -66,6 +66,12 @@ type Query {
         @goField(forceResolver: true)
     probotIdentityBindPreview(token: String!): ProbotIdentityBindPreview!
         @goField(forceResolver: true)
+    googleDriveFiles(
+        connectorId: ID!
+        query: String
+        pageSize: Int
+        pageToken: String
+    ): GoogleDriveFileList! @goField(forceResolver: true)
 }
 
 type Mutation

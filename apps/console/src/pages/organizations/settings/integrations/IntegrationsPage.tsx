@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { usePageTitle } from "@probo/hooks";
-import { PageHeader } from "@probo/ui";
+import { Button, PageHeader, ThirdPartyLogo } from "@probo/ui";
 import { Callout } from "@probo/ui/src/v2/Callout/Callout";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -74,11 +74,13 @@ export function IntegrationsPage({ queryRef }: IntegrationsPageProps) {
 
   const connectors = organization.connectors;
   const connected = new Set(connectors.map(({ provider }) => provider));
+  const hasGoogleDrive = connected.has("GOOGLE_DRIVE");
   const availableProviders = accessReviewDrivers
     .filter(({ provider }) => !connected.has(provider))
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   const { root, sections } = integrationsPage();
+  const { item, content, trailing } = integrationSection();
 
   return (
     <div className={root()}>
@@ -101,7 +103,7 @@ export function IntegrationsPage({ queryRef }: IntegrationsPageProps) {
         {organization.canCreateSource && (
           <IntegrationSection
             title={t("listPage.sections.available")}
-            count={availableProviders.length}
+            count={availableProviders.length + (!hasGoogleDrive ? 1 : 0)}
             empty={t("listPage.emptyAvailable")}
             notice={(
               <Callout color="sky">
@@ -120,6 +122,32 @@ export function IntegrationsPage({ queryRef }: IntegrationsPageProps) {
               </Callout>
             )}
           >
+            {!hasGoogleDrive && (
+              <li className={item()}>
+                <ThirdPartyLogo
+                  thirdParty="GOOGLE_DRIVE"
+                  className="size-6 shrink-0"
+                />
+                <div className={content()}>
+                  <span className="text-sm font-medium text-txt-primary">
+                    Google Drive
+                  </span>
+                  <span className="text-xs text-txt-secondary">
+                    {t("listPage.googleDrive.description")}
+                  </span>
+                </div>
+                <div className={trailing()}>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      window.location.href = `/api/console/v1/connectors/initiate?provider=GOOGLE_DRIVE&organization_id=${organizationId}&continue_url=${encodeURIComponent(window.location.href)}`;
+                    }}
+                  >
+                    {t("listPage.actions.connect")}
+                  </Button>
+                </div>
+              </li>
+            )}
             {availableProviders.map(provider => (
               <ConnectorProviderListItem
                 key={provider.provider}

@@ -209,6 +209,33 @@ func (r *documentResolver) DefaultApprovers(ctx context.Context, obj *types.Docu
 	return result, nil
 }
 
+// ExternalLink is the resolver for the externalLink field.
+func (r *documentResolver) ExternalLink(ctx context.Context, obj *types.Document) (*types.DocumentExternalLink, error) {
+	scope, err := r.authorize(ctx, obj.ID, probo.ActionDocumentGet)
+	if err != nil {
+		return nil, err
+	}
+
+	link, err := r.probo.GoogleDrive.GetExternalLink(ctx, scope, obj.ID)
+	if err != nil {
+		if errors.Is(err, coredata.ErrResourceNotFound) {
+			return nil, nil
+		}
+		r.logger.ErrorCtx(ctx, "cannot get document external link", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return &types.DocumentExternalLink{
+		Provider:     link.Provider,
+		ExternalID:   link.ExternalID,
+		ExternalURL:  link.ExternalURL,
+		MimeType:     link.MimeType,
+		LastSyncedAt: link.LastSyncedAt,
+		CreatedAt:    link.CreatedAt,
+		UpdatedAt:    link.UpdatedAt,
+	}, nil
+}
+
 // Permission is the resolver for the permission field.
 func (r *documentResolver) Permission(ctx context.Context, obj *types.Document, action string) (bool, error) {
 	return r.Resolver.Permission(ctx, obj, action)
@@ -980,6 +1007,80 @@ func (r *mutationResolver) CreateDocument(ctx context.Context, input types.Creat
 		DocumentEdge:        types.NewDocumentEdge(document, coredata.DocumentOrderFieldTitle),
 		DocumentVersionEdge: types.NewDocumentVersionEdge(documentVersion, coredata.DocumentVersionOrderFieldCreatedAt),
 	}, nil
+}
+
+// LinkGoogleDriveDocument is the resolver for the linkGoogleDriveDocument field.
+func (r *mutationResolver) LinkGoogleDriveDocument(ctx context.Context, input types.LinkGoogleDriveDocumentInput) (*types.LinkGoogleDriveDocumentPayload, error) {
+	scope, err := r.authorize(ctx, input.OrganizationID, probo.ActionDocumentCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	document, _, err := r.probo.GoogleDrive.LinkDocument(
+		ctx,
+		scope,
+		probo.LinkGoogleDriveDocumentRequest{
+			OrganizationID: input.OrganizationID,
+			ConnectorID:    input.ConnectorID,
+			FileID:         input.FileID,
+			Title:          input.Title,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, coredata.ErrResourceAlreadyExists) {
+			return nil, gqlutils.Conflict(ctx, err)
+		}
+
+		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+			return nil, gqlutils.InvalidValidationErrors(ctx, validationErrors)
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot link Google Drive document", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return &types.LinkGoogleDriveDocumentPayload{
+		DocumentEdge: types.NewDocumentEdge(document, coredata.DocumentOrderFieldTitle),
+		Document:     types.NewDocument(document),
+	}, nil
+}
+
+// SyncGoogleDriveDocument is the resolver for the syncGoogleDriveDocument field.
+func (r *mutationResolver) SyncGoogleDriveDocument(ctx context.Context, input types.SyncGoogleDriveDocumentInput) (*types.SyncGoogleDriveDocumentPayload, error) {
+	scope, err := r.authorize(ctx, input.DocumentID, probo.ActionDocumentUpdate)
+	if err != nil {
+		return nil, err
+	}
+
+	document, newVersion, _, err := r.probo.GoogleDrive.SyncDocument(
+		ctx,
+		scope,
+		probo.SyncGoogleDriveDocumentRequest{
+			DocumentID: input.DocumentID,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, coredata.ErrResourceNotFound) {
+			return nil, gqlutils.NotFound(ctx, err)
+		}
+
+		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+			return nil, gqlutils.InvalidValidationErrors(ctx, validationErrors)
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot sync Google Drive document", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	payload := &types.SyncGoogleDriveDocumentPayload{
+		Document: types.NewDocument(document),
+	}
+	if newVersion != nil {
+		payload.DocumentVersion = types.NewDocumentVersion(newVersion)
+		payload.DocumentVersionEdge = types.NewDocumentVersionEdge(newVersion, coredata.DocumentVersionOrderFieldCreatedAt)
+	}
+
+	return payload, nil
 }
 
 // UpdateDocument is the resolver for the updateDocument field.

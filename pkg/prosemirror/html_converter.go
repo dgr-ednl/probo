@@ -38,6 +38,22 @@ func sanitizeHTMLBlockContent(s string) string {
 	return htmlBlockSanitizePolicy.Sanitize(s)
 }
 
+// ParseHTML converts an HTML string into a ProseMirror doc Node tree.
+func ParseHTML(htmlStr string) (Node, error) {
+	sanitized := sanitizeHTMLBlockContent(htmlStr)
+	blocks, err := htmlFragmentToProseMirrorBlocks(sanitized)
+	if err != nil {
+		return Node{}, err
+	}
+	if len(blocks) == 0 {
+		blocks = []Node{paragraphWithPlainText("")}
+	}
+	return Node{
+		Type:    NodeDoc,
+		Content: blocks,
+	}, nil
+}
+
 // convertProseMirrorFromInlineHTML sanitizes inline raw HTML and maps it to
 // ProseMirror paragraph-level children (text, hardBreak, image, marks).
 func convertProseMirrorFromInlineHTML(raw string) ([]Node, error) {

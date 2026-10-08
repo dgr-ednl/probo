@@ -8125,6 +8125,7 @@ components:
       enum:
         - AUTHORED
         - GENERATED
+        - GOOGLE_DRIVE
       go.probo.inc/mcpgen/type: go.probo.inc/probo/pkg/coredata.DocumentWriteMode
 
     DocumentVersionSignatureState:
@@ -8233,6 +8234,46 @@ components:
             - "null"
           format: date-time
           description: Archive timestamp
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp
+        external_link:
+          $ref: "#/components/schemas/DocumentExternalLink"
+          description: External link metadata when write_mode is GOOGLE_DRIVE
+
+    DocumentExternalLink:
+      type: object
+      required:
+        - provider
+        - external_id
+        - external_url
+        - last_synced_at
+        - created_at
+        - updated_at
+      properties:
+        provider:
+          type: string
+          description: External provider (GOOGLE_DRIVE)
+        external_id:
+          type: string
+          description: External file ID
+        external_url:
+          type: string
+          description: External web view URL
+        mime_type:
+          type:
+            - string
+            - "null"
+          description: MIME type of the external file
+        last_synced_at:
+          type: string
+          format: date-time
+          description: Last sync timestamp
         created_at:
           type: string
           format: date-time
@@ -9024,6 +9065,120 @@ components:
       properties:
         approval_decision:
           $ref: "#/components/schemas/DocumentVersionApprovalDecision"
+
+    GoogleDriveFile:
+      type: object
+      required:
+        - id
+        - name
+        - mime_type
+        - web_view_link
+        - icon_link
+        - modified_time
+        - size
+      properties:
+        id:
+          type: string
+          description: Google Drive file ID
+        name:
+          type: string
+          description: File name
+        mime_type:
+          type: string
+          description: File MIME type
+        web_view_link:
+          type: string
+          description: Google Drive web view URL
+        icon_link:
+          type: string
+          description: File icon URL
+        modified_time:
+          type: string
+          format: date-time
+          description: Last modified time
+        size:
+          type: integer
+          description: File size in bytes
+
+    ListGoogleDriveFilesInput:
+      type: object
+      required:
+        - connector_id
+      properties:
+        connector_id:
+          $ref: "#/components/schemas/GID"
+          description: Connector ID
+        query:
+          type: string
+          description: Search query for file name
+        page_size:
+          type: integer
+          description: Number of files to return (1-100)
+        page_token:
+          type: string
+          description: Token for next page
+
+    ListGoogleDriveFilesOutput:
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoogleDriveFile"
+        next_page_token:
+          type:
+            - string
+            - "null"
+          description: Token for next page
+
+    LinkGoogleDriveDocumentInput:
+      type: object
+      required:
+        - organization_id
+        - connector_id
+        - file_id
+      properties:
+        organization_id:
+          $ref: "#/components/schemas/GID"
+          description: Organization ID
+        connector_id:
+          $ref: "#/components/schemas/GID"
+          description: Connector ID
+        file_id:
+          type: string
+          description: Google Drive file ID
+        title:
+          type: string
+          description: Optional override title for the document
+
+    LinkGoogleDriveDocumentOutput:
+      type: object
+      required:
+        - document
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+
+    SyncGoogleDriveDocumentInput:
+      type: object
+      required:
+        - document_id
+      properties:
+        document_id:
+          $ref: "#/components/schemas/GID"
+          description: Document ID
+
+    SyncGoogleDriveDocumentOutput:
+      type: object
+      required:
+        - document
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        document_version:
+          $ref: "#/components/schemas/DocumentVersion"
 
     WebhookEventType:
       type: string
@@ -18691,6 +18846,42 @@ tools:
       $ref: "#/components/schemas/UnarchiveDocumentInput"
     outputSchema:
       $ref: "#/components/schemas/UnarchiveDocumentOutput"
+  - name: listGoogleDriveFiles
+    title: List Google Drive Files
+    description: List files from a connected Google Drive
+    hints:
+      readonly: true
+      destructive: false
+      idempotent: true
+      openWorld: true
+    inputSchema:
+      $ref: "#/components/schemas/ListGoogleDriveFilesInput"
+    outputSchema:
+      $ref: "#/components/schemas/ListGoogleDriveFilesOutput"
+  - name: linkGoogleDriveDocument
+    title: Link Google Drive Document
+    description: Link a file from Google Drive as a read-only Probo document
+    hints:
+      readonly: false
+      destructive: false
+      idempotent: false
+      openWorld: true
+    inputSchema:
+      $ref: "#/components/schemas/LinkGoogleDriveDocumentInput"
+    outputSchema:
+      $ref: "#/components/schemas/LinkGoogleDriveDocumentOutput"
+  - name: syncGoogleDriveDocument
+    title: Sync Google Drive Document
+    description: Sync latest content and export PDF from Google Drive for a linked document
+    hints:
+      readonly: false
+      destructive: false
+      idempotent: false
+      openWorld: true
+    inputSchema:
+      $ref: "#/components/schemas/SyncGoogleDriveDocumentInput"
+    outputSchema:
+      $ref: "#/components/schemas/SyncGoogleDriveDocumentOutput"
   - name: listDocumentVersions
     title: List Document Versions
     description: List all versions for a document

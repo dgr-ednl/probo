@@ -106,10 +106,10 @@ func TestEveryProviderRegistered(t *testing.T) {
 				return
 			}
 
-			// LINEAR_SYNC is an OAuth app for task issue write, not an
-			// access-review source. AccessReviewDrivers skips NewDriver
-			// nil, so this factory must stay unset.
-			if p == coredata.ConnectorProviderLinearSync {
+			// LINEAR_SYNC is an OAuth app for task issue write and GOOGLE_DRIVE
+			// is for document sync, not access-review sources. AccessReviewDrivers
+			// skips NewDriver nil, so these factories must stay unset.
+			if p == coredata.ConnectorProviderLinearSync || p == coredata.ConnectorProviderGoogleDrive {
 				assert.Nilf(t, reg.NewDriver, "provider %q must not register an access-review driver", p)
 
 				return

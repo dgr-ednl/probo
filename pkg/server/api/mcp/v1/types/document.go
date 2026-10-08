@@ -281,3 +281,20 @@ func NewListDocumentVersionApprovalDecisionsOutput(decisionPage *page.Page[*core
 		ApprovalDecisions: decisions,
 	}
 }
+
+func NewLinkGoogleDriveDocumentOutput(doc *coredata.Document) LinkGoogleDriveDocumentOutput {
+	return LinkGoogleDriveDocumentOutput{
+		Document: NewDocument(doc),
+	}
+}
+
+func NewSyncGoogleDriveDocumentOutput(doc *coredata.Document, dv *coredata.DocumentVersion) SyncGoogleDriveDocumentOutput {
+	var version *DocumentVersion
+	if dv != nil {
+		version = NewDocumentVersion(dv)
+	}
+	return SyncGoogleDriveDocumentOutput{
+		Document:        NewDocument(doc),
+		DocumentVersion: version,
+	}
+}

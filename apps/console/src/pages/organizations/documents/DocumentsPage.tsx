@@ -21,6 +21,7 @@
 import { usePageTitle } from "@probo/hooks";
 import {
   Button,
+  GoogleLogo,
   IconPlusLarge,
   PageHeader,
   TabItem,
@@ -39,6 +40,7 @@ import { useOrganizationId } from "#/hooks/useOrganizationId";
 
 import { CreateDocumentDialog } from "./_components/CreateDocumentDialog";
 import { DocumentList } from "./_components/DocumentList";
+import { LinkGoogleDriveDocumentDialog } from "./_components/LinkGoogleDriveDocumentDialog";
 
 export const documentsPageQuery = graphql`
   query DocumentsPageQuery($organizationId: ID!) {
@@ -87,14 +89,24 @@ export default function DocumentsPage(props: {
       >
         <div className="flex gap-2">
           {organization.canCreateDocument && tab === "ACTIVE" && (
-            <CreateDocumentDialog
-              connection={documentListConnectionId}
-              trigger={(
-                <Button icon={IconPlusLarge}>
-                  {t("documentsPage.actions.new")}
-                </Button>
-              )}
-            />
+            <>
+              <LinkGoogleDriveDocumentDialog
+                connection={documentListConnectionId}
+                trigger={(
+                  <Button variant="secondary" icon={GoogleLogo}>
+                    {t("documentsPage.actions.linkGoogleDrive")}
+                  </Button>
+                )}
+              />
+              <CreateDocumentDialog
+                connection={documentListConnectionId}
+                trigger={(
+                  <Button icon={IconPlusLarge}>
+                    {t("documentsPage.actions.new")}
+                  </Button>
+                )}
+              />
+            </>
           )}
         </div>
       </PageHeader>

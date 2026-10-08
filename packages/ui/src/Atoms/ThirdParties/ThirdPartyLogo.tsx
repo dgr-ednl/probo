@@ -127,6 +127,7 @@ const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
   GITLAB: GitLab,
   GOOGLE: Google,
   GOOGLE_ANALYTICS: GoogleAnalytics,
+  GOOGLE_DRIVE: Google,
   GOOGLE_WORKSPACE: Google,
   GRAFANA: Grafana,
   HEROKU: Heroku,

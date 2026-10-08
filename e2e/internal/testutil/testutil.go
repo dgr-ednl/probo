@@ -372,6 +372,8 @@ func generateConfig(opts configOptions) (string, error) {
 		"PROBOD_CONNECTOR_LINEAR_SYNC_CLIENT_ID":      "e2e-linear-sync-client-id",
 		"PROBOD_CONNECTOR_LINEAR_SYNC_CLIENT_SECRET":  "e2e-linear-sync-client-secret",
 		"PROBOD_CONNECTOR_LINEAR_SYNC_WEBHOOK_SECRET": "e2e-linear-webhook-secret",
+		"PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_ID":     "e2e-google-drive-client-id",
+		"PROBOD_CONNECTOR_GOOGLE_DRIVE_CLIENT_SECRET": "e2e-google-drive-client-secret",
 
 		// Crisp is the only app-install provider, and it stays out of the
 		// catalog entirely until BOTH of these are set. Configuring it here is

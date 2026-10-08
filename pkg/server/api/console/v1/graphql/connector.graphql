@@ -5,6 +5,10 @@ enum ConnectorProvider
         @goEnum(
             value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderGoogleWorkspace"
         )
+    GOOGLE_DRIVE
+        @goEnum(
+            value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderGoogleDrive"
+        )
     LINEAR @goEnum(value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderLinear")
     LINEAR_SYNC
         @goEnum(value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderLinearSync")

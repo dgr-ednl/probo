@@ -1,4 +1,5 @@
 bin/
+linux/
 node_modules/
 .cache/
 .turbo

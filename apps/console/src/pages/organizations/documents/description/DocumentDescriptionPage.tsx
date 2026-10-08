@@ -18,8 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { ArrowSquareOutIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { formatError } from "@probo/helpers";
-import { RichEditor, useToast } from "@probo/ui";
+import { dateFormat } from "@probo/i18n";
+import { Badge, Button, GoogleLogo, RichEditor, useToast } from "@probo/ui";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type PreloadedQuery, useMutation, usePreloadedQuery } from "react-relay";
@@ -27,6 +29,7 @@ import { useOutletContext } from "react-router";
 import { graphql } from "relay-runtime";
 import { useDebounceCallback } from "usehooks-ts";
 
+import type { DocumentDescriptionPage_syncMutation } from "#/__generated__/core/DocumentDescriptionPage_syncMutation.graphql";
 import type { DocumentDescriptionPage_updateContentMutation } from "#/__generated__/core/DocumentDescriptionPage_updateContentMutation.graphql";
 import type { DocumentDescriptionPageQuery } from "#/__generated__/core/DocumentDescriptionPageQuery.graphql";
 
@@ -50,6 +53,12 @@ export const documentDescriptionPageQuery = graphql`
         status
         writeMode
         canUpdate: permission(action: "core:document:update")
+        externalLink {
+          id
+          externalId
+          externalUrl
+          lastSyncedAt
+        }
         # We use this on /documents/:documentId/description
         lastVersion: versions(first: 1 orderBy: { field: CREATED_AT, direction: DESC }) @skip(if: $versionSpecified) {
           edges {
@@ -75,6 +84,33 @@ const updateContentMutation = graphql`
         id
         content
         status
+      }
+    }
+  }
+`;
+
+const syncGoogleDriveDocumentMutation = graphql`
+  mutation DocumentDescriptionPage_syncMutation($input: SyncGoogleDriveDocumentInput!) {
+    syncGoogleDriveDocument(input: $input) {
+      document {
+        id
+        status
+        writeMode
+        externalLink {
+          id
+          externalId
+          externalUrl
+          lastSyncedAt
+        }
+        lastVersion: versions(first: 1 orderBy: { field: CREATED_AT, direction: DESC }) {
+          edges {
+            node {
+              id
+              content
+              status
+            }
+          }
+        }
       }
     }
   }
@@ -108,6 +144,9 @@ export function DocumentDescriptionPage(props: {
   }
 
   const [updateContent] = useMutation<DocumentDescriptionPage_updateContentMutation>(updateContentMutation);
+  const [syncGoogleDriveDocument, isSyncing] = useMutation<DocumentDescriptionPage_syncMutation>(
+    syncGoogleDriveDocumentMutation,
+  );
 
   const documentId = document.id;
   const wasDraft = currentVersion.status === "DRAFT";
@@ -154,10 +193,46 @@ export function DocumentDescriptionPage(props: {
     autoSaveIntervalMs,
   );
 
+  const handleSync = () => {
+    syncGoogleDriveDocument({
+      variables: {
+        input: {
+          documentId: document.id,
+        },
+      },
+      onCompleted(_, errors) {
+        if (errors?.length) {
+          toast({
+            title: t("documentDescriptionPage.errors.title"),
+            description: formatError(t("documentDescriptionPage.googleDrive.syncError"), errors),
+            variant: "error",
+          });
+          return;
+        }
+        toast({
+          title: t("documentDescriptionPage.messages.successTitle"),
+          description: t("documentDescriptionPage.googleDrive.syncSuccess"),
+          variant: "success",
+        });
+        onDocumentUpdated();
+      },
+      onError(error) {
+        toast({
+          title: t("documentDescriptionPage.errors.title"),
+          description: error.message,
+          variant: "error",
+        });
+      },
+    });
+  };
+
+  const isGoogleDrive = document.writeMode === "GOOGLE_DRIVE";
+
   const canEdit = isEditable
     && document.canUpdate
     && document.status !== "ARCHIVED"
-    && document.writeMode !== "GENERATED";
+    && document.writeMode !== "GENERATED"
+    && !isGoogleDrive;
 
   // The editor key must change on explicit actions (delete draft, edit
   // title/type) but NOT on auto-save side effects (cursor preservation).
@@ -194,13 +269,68 @@ export function DocumentDescriptionPage(props: {
   const editorKey = `${version?.id ?? document.id}-${dataGeneration}`;
 
   return (
-    <RichEditor
-      key={editorKey}
-      className="flex-1"
-      content={currentVersion.content}
-      data-theme="document"
-      disabled={!canEdit}
-      onChangeContent={handleUpdate}
-    />
+    <div className="flex flex-col flex-1">
+      {isGoogleDrive && (
+        <div className="flex items-center justify-between px-4 py-3 mb-4 rounded-lg bg-bg-secondary border border-border-primary">
+          <div className="flex items-center gap-3">
+            <GoogleLogo className="size-5 shrink-0" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-txt-primary">
+                  {t("documentDescriptionPage.googleDrive.syncedWithDrive")}
+                </span>
+                <Badge variant="neutral" size="sm">
+                  {t("documentDescriptionPage.googleDrive.readOnly")}
+                </Badge>
+              </div>
+              {document.externalLink?.lastSyncedAt && (
+                <p className="text-xs text-txt-secondary">
+                  {t("documentDescriptionPage.googleDrive.lastSynced", {
+                    time: dateFormat(new Date(document.externalLink.lastSyncedAt)),
+                  })}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {document.externalLink?.externalUrl && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ArrowSquareOutIcon}
+                asChild
+              >
+                <a
+                  href={document.externalLink.externalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t("documentDescriptionPage.googleDrive.openInDrive")}
+                </a>
+              </Button>
+            )}
+            {document.canUpdate && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ArrowsClockwiseIcon}
+                onClick={handleSync}
+                loading={isSyncing}
+              >
+                {t("documentDescriptionPage.googleDrive.syncNow")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+      <RichEditor
+        key={editorKey}
+        className="flex-1"
+        content={currentVersion.content}
+        data-theme="document"
+        disabled={!canEdit}
+        onChangeContent={handleUpdate}
+      />
+    </div>
   );
 }

@@ -132,11 +132,60 @@
     "title": "Documents",
     "description": "Gérez les documents de votre organisation",
     "actions": {
-      "new": "Nouveau document"
+      "new": "Nouveau document",
+      "linkGoogleDrive": "Lier depuis Google Drive"
     },
     "tabs": {
       "active": "Actifs",
       "archived": "Archivés"
+    }
+  },
+  "linkGoogleDriveDocumentDialog": {
+    "breadcrumbs": {
+      "documents": "Documents",
+      "linkGoogleDrive": "Lier depuis Google Drive"
+    },
+    "fields": {
+      "connector": "Compte Google Drive",
+      "searchFiles": "Rechercher dans Google Drive",
+      "searchPlaceholder": "Rechercher des fichiers par nom...",
+      "documentTitle": "Titre du document",
+      "titlePlaceholder": "Titre du document dans Probo",
+      "approversPlaceholder": "Ajouter des approbateurs..."
+    },
+    "properties": {
+      "title": "Propriétés",
+      "status": "Statut",
+      "source": "Source",
+      "type": "Type",
+      "classification": "Classification",
+      "approvers": "Approbateurs"
+    },
+    "status": {
+      "draft": "Brouillon"
+    },
+    "validation": {
+      "titleRequired": "Le titre est requis",
+      "fileRequired": "Veuillez sélectionner un fichier à lier"
+    },
+    "messages": {
+      "successTitle": "Succès",
+      "linked": "Document lié avec succès."
+    },
+    "errors": {
+      "title": "Erreur",
+      "link": "Échec de la liaison du document depuis Google Drive"
+    },
+    "actions": {
+      "cancel": "Annuler",
+      "link": "Lier le document",
+      "previewInDrive": "Ouvrir dans Google Drive"
+    },
+    "emptyFiles": "Aucun fichier trouvé. Essayez un autre terme de recherche.",
+    "notConnected": {
+      "title": "Google Drive non connecté",
+      "description": "Connectez votre compte Google Drive dans les paramètres pour parcourir et lier des documents.",
+      "connectAction": "Connecter Google Drive"
     }
   },
   "createDocumentDialog": {
@@ -268,7 +317,8 @@
     },
     "writeModes": {
       "authored": "Rédigé",
-      "generated": "Généré"
+      "generated": "Généré",
+      "google_drive": "Google Drive"
     },
     "documentTypes": {
       "other": "Autre",
@@ -506,6 +556,15 @@
     "errors": {
       "title": "Erreur",
       "save": "Contenu non enregistré"
+    },
+    "googleDrive": {
+      "syncedWithDrive": "Synchronisé avec Google Drive",
+      "readOnly": "Lecture seule",
+      "lastSynced": "Dernière synchronisation {{time}}",
+      "openInDrive": "Ouvrir dans Google Drive",
+      "syncNow": "Synchroniser maintenant",
+      "syncSuccess": "Document synchronisé avec Google Drive",
+      "syncError": "Échec de la synchronisation du document avec Google Drive"
     }
   },
   "documentSignaturesPage": {

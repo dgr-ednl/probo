@@ -10599,3 +10599,86 @@ func linearMCPIssue(issue tasksync.LinearIssue) (*types.LinearIssue, error) {
 
 	return node, nil
 }
+
+func (r *Resolver) ListGoogleDriveFilesTool(ctx context.Context, req *mcp.CallToolRequest, input *types.ListGoogleDriveFilesInput) (*mcp.CallToolResult, types.ListGoogleDriveFilesOutput, error) {
+	scope, err := r.Authorize(ctx, input.ConnectorID, probo.ActionConnectorGet)
+	if err != nil {
+		return nil, types.ListGoogleDriveFilesOutput{}, err
+	}
+
+	var size int64 = 20
+	if input.PageSize != nil {
+		size = int64(*input.PageSize)
+	}
+
+	result, err := r.proboSvc.GoogleDrive.SearchFiles(ctx, scope, input.ConnectorID, input.Query, size, input.PageToken)
+	if err != nil {
+		return nil, types.ListGoogleDriveFilesOutput{}, fmt.Errorf("cannot search Google Drive files: %w", err)
+	}
+
+	files := make([]*types.GoogleDriveFile, len(result.Files))
+	for i, f := range result.Files {
+		files[i] = &types.GoogleDriveFile{
+			ID:           f.ID,
+			Name:         f.Name,
+			MimeType:     f.MimeType,
+			WebViewLink:  f.WebViewLink,
+			IconLink:     f.IconLink,
+			ModifiedTime: f.ModifiedTime,
+			Size:         int(f.Size),
+		}
+	}
+
+	var nextToken *string
+	if result.NextPageToken != "" {
+		nextToken = &result.NextPageToken
+	}
+
+	return nil, types.ListGoogleDriveFilesOutput{
+		Files:         files,
+		NextPageToken: nextToken,
+	}, nil
+}
+
+func (r *Resolver) LinkGoogleDriveDocumentTool(ctx context.Context, req *mcp.CallToolRequest, input *types.LinkGoogleDriveDocumentInput) (*mcp.CallToolResult, types.LinkGoogleDriveDocumentOutput, error) {
+	scope, err := r.Authorize(ctx, input.OrganizationID, probo.ActionDocumentCreate)
+	if err != nil {
+		return nil, types.LinkGoogleDriveDocumentOutput{}, err
+	}
+
+	document, _, err := r.proboSvc.GoogleDrive.LinkDocument(
+		ctx,
+		scope,
+		probo.LinkGoogleDriveDocumentRequest{
+			OrganizationID: input.OrganizationID,
+			ConnectorID:    input.ConnectorID,
+			FileID:         input.FileID,
+			Title:          input.Title,
+		},
+	)
+	if err != nil {
+		return nil, types.LinkGoogleDriveDocumentOutput{}, fmt.Errorf("cannot link Google Drive document: %w", err)
+	}
+
+	return nil, types.NewLinkGoogleDriveDocumentOutput(document), nil
+}
+
+func (r *Resolver) SyncGoogleDriveDocumentTool(ctx context.Context, req *mcp.CallToolRequest, input *types.SyncGoogleDriveDocumentInput) (*mcp.CallToolResult, types.SyncGoogleDriveDocumentOutput, error) {
+	scope, err := r.Authorize(ctx, input.DocumentID, probo.ActionDocumentUpdate)
+	if err != nil {
+		return nil, types.SyncGoogleDriveDocumentOutput{}, err
+	}
+
+	document, newVersion, _, err := r.proboSvc.GoogleDrive.SyncDocument(
+		ctx,
+		scope,
+		probo.SyncGoogleDriveDocumentRequest{
+			DocumentID: input.DocumentID,
+		},
+	)
+	if err != nil {
+		return nil, types.SyncGoogleDriveDocumentOutput{}, fmt.Errorf("cannot sync Google Drive document: %w", err)
+	}
+
+	return nil, types.NewSyncGoogleDriveDocumentOutput(document, newVersion), nil
+}

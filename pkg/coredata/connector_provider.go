@@ -30,6 +30,7 @@ type ConnectorProvider string
 const (
 	ConnectorProviderSlack           ConnectorProvider = "SLACK"
 	ConnectorProviderGoogleWorkspace ConnectorProvider = "GOOGLE_WORKSPACE"
+	ConnectorProviderGoogleDrive     ConnectorProvider = "GOOGLE_DRIVE"
 	ConnectorProviderLinear          ConnectorProvider = "LINEAR"
 	ConnectorProviderLinearSync      ConnectorProvider = "LINEAR_SYNC"
 	// _ ConnectorProvider = "FIGMA" — formerly Figma; removed (no driver, no OAuth config, no usage)
@@ -118,6 +119,7 @@ func ConnectorProviders() []ConnectorProvider {
 	return []ConnectorProvider{
 		ConnectorProviderSlack,
 		ConnectorProviderGoogleWorkspace,
+		ConnectorProviderGoogleDrive,
 		ConnectorProviderLinear,
 		ConnectorProviderLinearSync,
 		ConnectorProviderOnePassword,
@@ -198,6 +200,7 @@ func (v ConnectorProvider) IsValid() bool {
 	case
 		ConnectorProviderSlack,
 		ConnectorProviderGoogleWorkspace,
+		ConnectorProviderGoogleDrive,
 		ConnectorProviderLinear,
 		ConnectorProviderLinearSync,
 		ConnectorProviderOnePassword,

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { usePageTitle } from "@probo/hooks";
-import { Badge, Button, IconUpload, PageHeader, TabBadge, TabLink, Tabs } from "@probo/ui";
+import { Badge, Button, GoogleLogo, IconUpload, PageHeader, TabBadge, TabLink, Tabs } from "@probo/ui";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type PreloadedQuery, usePreloadedQuery } from "react-relay";
@@ -155,7 +155,8 @@ export function DocumentLayout(props: { queryRef: PreloadedQuery<DocumentLayoutQ
   const isDraft = currentVersion.status === "DRAFT";
   const isPublished = currentVersion.status === "PUBLISHED";
   const isGenerated = document.writeMode === "GENERATED";
-  const isEditable = isLatestVersion && !isPendingApproval;
+  const isGoogleDrive = document.writeMode === "GOOGLE_DRIVE";
+  const isEditable = isLatestVersion && !isPendingApproval && !isGoogleDrive;
   const lastQuorum = currentVersion.approvalQuorums?.edges?.[0]?.node ?? null;
   const hasApprovals = lastQuorum != null;
 
@@ -227,6 +228,12 @@ export function DocumentLayout(props: { queryRef: PreloadedQuery<DocumentLayoutQ
             />
           )}
         >
+          {isGoogleDrive && (
+            <Badge variant="neutral" className="inline-flex items-center gap-1">
+              <GoogleLogo className="size-3.5" />
+              <span>Google Drive</span>
+            </Badge>
+          )}
           {isGenerated && (
             <Badge variant="neutral">{t("documentLayout.status.generated")}</Badge>
           )}

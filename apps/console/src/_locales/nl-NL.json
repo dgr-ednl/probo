@@ -132,11 +132,60 @@
     "title": "Documenten",
     "description": "Beheer de documenten van uw organisatie",
     "actions": {
-      "new": "Nieuw document"
+      "new": "Nieuw document",
+      "linkGoogleDrive": "Koppelen vanuit Google Drive"
     },
     "tabs": {
       "active": "Actief",
       "archived": "Gearchiveerd"
+    }
+  },
+  "linkGoogleDriveDocumentDialog": {
+    "breadcrumbs": {
+      "documents": "Documenten",
+      "linkGoogleDrive": "Koppelen vanuit Google Drive"
+    },
+    "fields": {
+      "connector": "Google Drive account",
+      "searchFiles": "Zoeken in Google Drive",
+      "searchPlaceholder": "Zoek bestanden op naam...",
+      "documentTitle": "Documenttitel",
+      "titlePlaceholder": "Documenttitel in Probo",
+      "approversPlaceholder": "Goedkeurders toevoegen..."
+    },
+    "properties": {
+      "title": "Eigenschappen",
+      "status": "Status",
+      "source": "Bron",
+      "type": "Type",
+      "classification": "Classificatie",
+      "approvers": "Goedkeurders"
+    },
+    "status": {
+      "draft": "Concept"
+    },
+    "validation": {
+      "titleRequired": "Titel is verplicht",
+      "fileRequired": "Selecteer een bestand om te koppelen"
+    },
+    "messages": {
+      "successTitle": "Succes",
+      "linked": "Document succesvol gekoppeld."
+    },
+    "errors": {
+      "title": "Fout",
+      "link": "Koppelen van document vanuit Google Drive mislukt"
+    },
+    "actions": {
+      "cancel": "Annuleren",
+      "link": "Document koppelen",
+      "previewInDrive": "Openen in Google Drive"
+    },
+    "emptyFiles": "Geen bestanden gevonden. Probeer een andere zoekterm.",
+    "notConnected": {
+      "title": "Google Drive niet gekoppeld",
+      "description": "Verbind uw Google Drive-account in de instellingen om documenten te bladeren en koppelen.",
+      "connectAction": "Google Drive verbinden"
     }
   },
   "createDocumentDialog": {
@@ -268,7 +317,8 @@
     },
     "writeModes": {
       "authored": "Opgesteld",
-      "generated": "Gegenereerd"
+      "generated": "Gegenereerd",
+      "google_drive": "Google Drive"
     },
     "documentTypes": {
       "other": "Overig",
@@ -506,6 +556,15 @@
     "errors": {
       "title": "Fout",
       "save": "Inhoud niet opgeslagen"
+    },
+    "googleDrive": {
+      "syncedWithDrive": "Gesynchroniseerd met Google Drive",
+      "readOnly": "Alleen-lezen",
+      "lastSynced": "Laatst gesynchroniseerd {{time}}",
+      "openInDrive": "Openen in Google Drive",
+      "syncNow": "Nu synchroniseren",
+      "syncSuccess": "Document gesynchroniseerd met Google Drive",
+      "syncError": "Synchroniseren van document met Google Drive mislukt"
     }
   },
   "documentSignaturesPage": {

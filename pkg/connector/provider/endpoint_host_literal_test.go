@@ -99,6 +99,16 @@ var literalAllowlist = []allowedLiteral{
 		reason:  "the expected iss claim of a Google ID token, a validation constant rather than a request target",
 	},
 	{
+		file:    "pkg/iam/oidc/service.go",
+		literal: "https://www.googleapis.com/oauth2/v3/certs",
+		reason:  "Google's public JWKS endpoint for Probo's sign-in-with-Google OIDC verification",
+	},
+	{
+		file:    "pkg/cloud/gcp/session.go",
+		literal: "https://www.googleapis.com/auth/cloud-platform",
+		reason:  "GCP cloud scanning OAuth2 scope, unrelated to any connector",
+	},
+	{
 		file:    "pkg/deviceagent/update/update.go",
 		literal: "https://api.github.com",
 		reason:  "defaultAPIBaseURL: the agent's self-updater reads Probo's OWN getprobo/probo releases, not a customer's GitHub connector",
