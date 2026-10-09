@@ -54,7 +54,6 @@ export const documentDescriptionPageQuery = graphql`
         writeMode
         canUpdate: permission(action: "core:document:update")
         externalLink {
-          id
           externalId
           externalUrl
           lastSyncedAt
@@ -97,7 +96,6 @@ const syncGoogleDriveDocumentMutation = graphql`
         status
         writeMode
         externalLink {
-          id
           externalId
           externalUrl
           lastSyncedAt
@@ -122,7 +120,7 @@ export function DocumentDescriptionPage(props: {
 }) {
   const { queryRef, versionChangedAt } = props;
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const { onDocumentUpdated, isEditable } = useOutletContext<{
     onDocumentUpdated: () => void;
@@ -286,7 +284,7 @@ export function DocumentDescriptionPage(props: {
               {document.externalLink?.lastSyncedAt && (
                 <p className="text-xs text-txt-secondary">
                   {t("documentDescriptionPage.googleDrive.lastSynced", {
-                    time: dateFormat(new Date(document.externalLink.lastSyncedAt)),
+                    time: dateFormat(i18n.language, document.externalLink.lastSyncedAt),
                   })}
                 </p>
               )}
@@ -296,7 +294,6 @@ export function DocumentDescriptionPage(props: {
             {document.externalLink?.externalUrl && (
               <Button
                 variant="secondary"
-                size="sm"
                 icon={ArrowSquareOutIcon}
                 asChild
               >
@@ -312,10 +309,9 @@ export function DocumentDescriptionPage(props: {
             {document.canUpdate && (
               <Button
                 variant="secondary"
-                size="sm"
                 icon={ArrowsClockwiseIcon}
                 onClick={handleSync}
-                loading={isSyncing}
+                disabled={isSyncing}
               >
                 {t("documentDescriptionPage.googleDrive.syncNow")}
               </Button>

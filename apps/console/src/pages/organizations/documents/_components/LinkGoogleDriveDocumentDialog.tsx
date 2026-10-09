@@ -87,7 +87,6 @@ const filesQuery = graphql`
         mimeType
         webViewLink
         iconLink
-        thumbnailLink
         modifiedTime
         size
       }
@@ -125,9 +124,8 @@ type GoogleDriveFileItem = {
   mimeType: string;
   webViewLink: string;
   iconLink?: string | null;
-  thumbnailLink?: string | null;
   modifiedTime?: string | null;
-  size?: string | null;
+  size?: number | string | null;
 };
 
 export function LinkGoogleDriveDocumentDialog({ trigger, connection }: LinkGoogleDriveDocumentDialogProps) {
@@ -304,9 +302,6 @@ function LinkGoogleDriveForm({
           connectorId: selectedConnectorId,
           fileId: selectedFile.id,
           title: formData.title,
-          documentType: formData.documentType,
-          classification: formData.classification,
-          defaultApproverIds: formData.defaultApproverIds,
         },
         connections: [connection],
       },
@@ -464,7 +459,7 @@ function LinkGoogleDriveForm({
         <Button variant="secondary" type="button" onClick={onClose}>
           {t("linkGoogleDriveDocumentDialog.actions.cancel")}
         </Button>
-        <Button type="submit" disabled={!selectedFile || isLinking} loading={isLinking}>
+        <Button type="submit" disabled={!selectedFile || isLinking}>
           {t("linkGoogleDriveDocumentDialog.actions.link")}
         </Button>
       </DialogFooter>
@@ -483,7 +478,7 @@ function DriveFileList({
   selectedFileId?: string;
   onSelect: (file: GoogleDriveFileItem) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const data = useLazyLoadQuery<LinkGoogleDriveDocumentDialogFilesQuery>(
     filesQuery,
     { connectorId, query: query || null },
@@ -537,7 +532,7 @@ function DriveFileList({
               <p className="text-sm font-medium text-txt-primary truncate">{file.name}</p>
               {file.modifiedTime && (
                 <p className="text-xs text-txt-secondary">
-                  {dateFormat(new Date(file.modifiedTime))}
+                  {dateFormat(i18n.language, file.modifiedTime)}
                 </p>
               )}
             </div>
