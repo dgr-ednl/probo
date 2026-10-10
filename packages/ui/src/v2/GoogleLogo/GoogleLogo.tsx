@@ -20,16 +20,27 @@
 
 import type { ComponentProps } from "react";
 
-export type GoogleLogoProps = ComponentProps<"svg">;
+export type GoogleLogoProps = ComponentProps<"svg"> & {
+  size?: number | string;
+};
 
 // Official Google "G" mark. Fills are Google's four-color palette and do not
 // follow currentColor — size it with width/height or a size class.
-export function GoogleLogo(props: GoogleLogoProps) {
+export function GoogleLogo({
+  size,
+  width,
+  height,
+  className,
+  ...props
+}: GoogleLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 262 262"
       preserveAspectRatio="xMidYMid"
+      width={width ?? size ?? 24}
+      height={height ?? size ?? 24}
+      className={className}
       {...props}
     >
       <path

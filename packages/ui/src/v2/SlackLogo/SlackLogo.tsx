@@ -20,15 +20,26 @@
 
 import type { ComponentProps } from "react";
 
-export type SlackLogoProps = ComponentProps<"svg">;
+export type SlackLogoProps = ComponentProps<"svg"> & {
+  size?: number | string;
+};
 
 // Official Slack brand mark. Fills are Slack's four-color palette and do not
 // follow currentColor — size it with width/height or a size class.
-export function SlackLogo(props: SlackLogoProps) {
+export function SlackLogo({
+  size,
+  width,
+  height,
+  className,
+  ...props
+}: SlackLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 2447.6 2452.5"
+      width={width ?? size ?? 24}
+      height={height ?? size ?? 24}
+      className={className}
       {...props}
     >
       <g clipRule="evenodd" fillRule="evenodd">

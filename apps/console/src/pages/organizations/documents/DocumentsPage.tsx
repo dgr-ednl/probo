@@ -26,13 +26,15 @@ import {
   PageHeader,
   TabItem,
   Tabs,
+  useToast,
 } from "@probo/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type PreloadedQuery,
   usePreloadedQuery,
 } from "react-relay";
+import { useSearchParams } from "react-router";
 import { ConnectionHandler, graphql } from "relay-runtime";
 
 import type { DocumentsPageQuery } from "#/__generated__/core/DocumentsPageQuery.graphql";
@@ -69,6 +71,28 @@ export default function DocumentsPage(props: {
   if (organization.__typename !== "Organization") {
     throw new Error("invalid type for node");
   }
+
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const callbackError = searchParams.get("error");
+
+  useEffect(() => {
+    if (callbackError) {
+      toast({
+        title: t("documentsPage.messages.error", { defaultValue: "Connection error" }),
+        description: callbackError,
+        variant: "error",
+      });
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete("error");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [callbackError, setSearchParams, t, toast]);
 
   usePageTitle(t("documentsPage.pageTitle"));
 

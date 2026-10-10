@@ -198,7 +198,8 @@ function LinkGoogleDriveContent({
         <Button
           variant="primary"
           onClick={() => {
-            window.location.href = `/api/console/v1/connectors/initiate?provider=GOOGLE_DRIVE&organization_id=${organizationId}&continue_url=${encodeURIComponent(window.location.href)}`;
+            const continueUrl = encodeURIComponent(window.location.href);
+            window.location.href = `/api/console/v1/connectors/initiate?provider=GOOGLE_DRIVE&organization_id=${organizationId}&continue=${continueUrl}&continue_url=${continueUrl}`;
           }}
         >
           {t("linkGoogleDriveDocumentDialog.notConnected.connectAction")}

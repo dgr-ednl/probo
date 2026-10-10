@@ -19,12 +19,12 @@
 // SOFTWARE.
 
 import { usePageTitle } from "@probo/hooks";
-import { Button, PageHeader, ThirdPartyLogo } from "@probo/ui";
+import { Button, PageHeader, ThirdPartyLogo, useToast } from "@probo/ui";
 import { Callout } from "@probo/ui/src/v2/Callout/Callout";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { graphql, type PreloadedQuery, usePreloadedQuery } from "react-relay";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import type { IntegrationsPageQuery } from "#/__generated__/core/IntegrationsPageQuery.graphql";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
@@ -65,6 +65,28 @@ export function IntegrationsPage({ queryRef }: IntegrationsPageProps) {
   const organizationId = useOrganizationId();
   const { organization, accessReviewDrivers }
     = usePreloadedQuery<IntegrationsPageQuery>(integrationsPageQuery, queryRef);
+
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const callbackError = searchParams.get("error");
+
+  useEffect(() => {
+    if (callbackError) {
+      toast({
+        title: t("listPage.messages.error", { defaultValue: "Connection error" }),
+        description: callbackError,
+        variant: "error",
+      });
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete("error");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [callbackError, setSearchParams, t, toast]);
 
   usePageTitle(t("listPage.title"));
 
@@ -140,7 +162,8 @@ export function IntegrationsPage({ queryRef }: IntegrationsPageProps) {
                   <Button
                     variant="primary"
                     onClick={() => {
-                      window.location.href = `/api/console/v1/connectors/initiate?provider=GOOGLE_DRIVE&organization_id=${organizationId}&continue_url=${encodeURIComponent(window.location.href)}`;
+                      const continueUrl = encodeURIComponent(window.location.href);
+                      window.location.href = `/api/console/v1/connectors/initiate?provider=GOOGLE_DRIVE&organization_id=${organizationId}&continue=${continueUrl}&continue_url=${continueUrl}`;
                     }}
                   >
                     {t("listPage.actions.connect")}

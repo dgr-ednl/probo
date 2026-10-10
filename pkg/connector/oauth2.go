@@ -263,6 +263,8 @@ func (c *OAuth2Connector) Initiate(
 	if r != nil {
 		if continueURL := r.URL.Query().Get("continue"); continueURL != "" {
 			stateData.ContinueURL = continueURL
+		} else if continueURL := r.URL.Query().Get("continue_url"); continueURL != "" {
+			stateData.ContinueURL = continueURL
 		}
 	}
 

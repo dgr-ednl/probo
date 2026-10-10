@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"go.gearno.de/kit/httpserver"
 	"go.gearno.de/kit/log"
@@ -32,6 +33,7 @@ import (
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/iam"
 	"go.probo.inc/probo/pkg/probo"
+	"go.probo.inc/probo/pkg/saferedirect"
 	"go.probo.inc/probo/pkg/server/api/authn"
 )
 
@@ -42,39 +44,66 @@ func handleConnectorInitiate(
 	proboSvc *probo.Service,
 	iamSvc *iam.Service,
 	connectorRegistry *connector.Registry,
+	safeRedirect *saferedirect.SafeRedirect,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		provider := r.URL.Query().Get("provider")
+
+		continueURL := r.URL.Query().Get("continue")
+		if continueURL == "" {
+			continueURL = r.URL.Query().Get("continue_url")
+		}
+
+		fail := func(status int, err error) {
+			if continueURL != "" && safeRedirect != nil {
+				parsedURL, parseErr := url.Parse(continueURL)
+				if parseErr == nil {
+					q := parsedURL.Query()
+					q.Set("error", err.Error())
+					parsedURL.RawQuery = q.Encode()
+					safeRedirect.Redirect(w, r, parsedURL.String(), "/", http.StatusSeeOther)
+					return
+				}
+			}
+
+			httpserver.RenderError(w, status, err)
+		}
+
 		if provider == "" {
-			httpserver.RenderError(w, http.StatusBadRequest, fmt.Errorf("missing provider parameter"))
+			fail(http.StatusBadRequest, fmt.Errorf("missing provider parameter"))
 			return
 		}
 
 		if _, err := connectorRegistry.Lookup(provider, connector.ProtocolOAuth2); err != nil {
-			httpserver.RenderError(w, http.StatusBadRequest, fmt.Errorf("unsupported provider: %q", provider))
+			var p coredata.ConnectorProvider
+			if unmarshalErr := p.UnmarshalText([]byte(provider)); unmarshalErr == nil {
+				fail(http.StatusBadRequest, fmt.Errorf("provider %q is not configured on this server (missing OAuth2 credentials)", provider))
+			} else {
+				fail(http.StatusBadRequest, fmt.Errorf("unsupported provider: %q", provider))
+			}
 			return
 		}
 
 		organizationID, err := gid.ParseGID(r.URL.Query().Get("organization_id"))
 		if err != nil {
-			httpserver.RenderError(w, http.StatusBadRequest, fmt.Errorf("invalid organization_id parameter"))
+			fail(http.StatusBadRequest, fmt.Errorf("invalid organization_id parameter"))
 			return
 		}
 
 		if authn.APIKeyFromContext(r.Context()) != nil {
-			httpserver.RenderError(w, http.StatusBadRequest, fmt.Errorf("api key authentication cannot be used for this endpoint"))
+			fail(http.StatusBadRequest, fmt.Errorf("api key authentication cannot be used for this endpoint"))
 			return
 		}
 
 		identity := authn.IdentityFromContext(r.Context())
 		if identity == nil {
-			httpserver.RenderError(w, http.StatusUnauthorized, fmt.Errorf("authentication required"))
+			fail(http.StatusUnauthorized, fmt.Errorf("authentication required"))
 			return
 		}
 
 		session := authn.SessionFromContext(r.Context())
 		if session == nil {
-			httpserver.RenderError(w, http.StatusUnauthorized, fmt.Errorf("authentication required"))
+			fail(http.StatusUnauthorized, fmt.Errorf("authentication required"))
 			return
 		}
 
@@ -85,7 +114,7 @@ func handleConnectorInitiate(
 			Action:    probo.ActionConnectorInitiate,
 		})
 		if err != nil {
-			httpserver.RenderError(w, http.StatusForbidden, err)
+			fail(http.StatusForbidden, err)
 			return
 		}
 
@@ -100,17 +129,17 @@ func handleConnectorInitiate(
 		existing, err := loadExistingConnector(r, prb, scope)
 		if err != nil {
 			if errors.Is(err, coredata.ErrResourceNotFound) {
-				httpserver.RenderError(w, http.StatusBadRequest, fmt.Errorf("cannot reconnect: connector not found"))
+				fail(http.StatusBadRequest, fmt.Errorf("cannot reconnect: connector not found"))
 				return
 			}
 
 			if errors.Is(err, errInvalidReconnectConnector) {
-				httpserver.RenderError(w, http.StatusBadRequest, err)
+				fail(http.StatusBadRequest, err)
 				return
 			}
 
 			logger.ErrorCtx(r.Context(), "cannot look up existing connector", log.Error(err))
-			httpserver.RenderError(w, http.StatusInternalServerError, fmt.Errorf("internal error"))
+			fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
 
 			return
 		}
@@ -136,7 +165,7 @@ func handleConnectorInitiate(
 		)
 		if err != nil {
 			logger.ErrorCtx(r.Context(), "cannot initiate connector", log.Error(err))
-			httpserver.RenderError(w, http.StatusInternalServerError, fmt.Errorf("internal error"))
+			fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
 
 			return
 		}

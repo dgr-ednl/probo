@@ -20,16 +20,27 @@
 
 import type { ComponentProps } from "react";
 
-export type MicrosoftLogoProps = ComponentProps<"svg">;
+export type MicrosoftLogoProps = ComponentProps<"svg"> & {
+  size?: number | string;
+};
 
 // Official Microsoft four-square mark. Fills are Microsoft's brand palette
 // and do not follow currentColor — size it with width/height or a size class.
-export function MicrosoftLogo(props: MicrosoftLogoProps) {
+export function MicrosoftLogo({
+  size,
+  width,
+  height,
+  className,
+  ...props
+}: MicrosoftLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="-24 -24 304 304"
       preserveAspectRatio="xMidYMid"
+      width={width ?? size ?? 24}
+      height={height ?? size ?? 24}
+      className={className}
       {...props}
     >
       <rect x="0" y="0" width="121" height="121" fill="#F25022" />
