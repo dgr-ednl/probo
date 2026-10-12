@@ -276,6 +276,39 @@ WHERE
 	return nil
 }
 
+func (l DocumentExternalLink) DeleteByDocumentIDs(
+	ctx context.Context,
+	conn pg.Querier,
+	scope Scoper,
+	documentIDs []gid.GID,
+) error {
+	if len(documentIDs) == 0 {
+		return nil
+	}
+
+	q := `
+DELETE
+FROM
+    document_external_links
+WHERE
+    %s
+    AND document_id = ANY(@document_ids);
+`
+
+	args := pgx.StrictNamedArgs{
+		"document_ids": documentIDs,
+	}
+	maps.Copy(args, scope.SQLArguments())
+
+	q = fmt.Sprintf(q, scope.SQLFragment())
+
+	if _, err := conn.Exec(ctx, q, args); err != nil {
+		return fmt.Errorf("cannot delete document external links: %w", err)
+	}
+
+	return nil
+}
+
 func (l *DocumentExternalLink) loadExactlyOne(
 	ctx context.Context,
 	conn pg.Querier,

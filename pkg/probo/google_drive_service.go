@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -490,14 +491,30 @@ func (s *GoogleDriveService) LinkDocument(
 		return nil, nil, err
 	}
 
-	var existingLink coredata.DocumentExternalLink
+	var (
+		existingLink   coredata.DocumentExternalLink
+		staleLinkFound bool
+		hasActiveLink  bool
+	)
 	err = s.svc.pg.WithConn(
 		ctx,
 		func(ctx context.Context, conn pg.Querier) error {
-			return existingLink.LoadByExternalID(ctx, conn, scope, req.OrganizationID, coredata.ConnectorProviderGoogleDrive, req.FileID)
+			if err := existingLink.LoadByExternalID(ctx, conn, scope, req.OrganizationID, coredata.ConnectorProviderGoogleDrive, req.FileID); err != nil {
+				return err
+			}
+			var existingDoc coredata.Document
+			if err := existingDoc.LoadByID(ctx, conn, scope, existingLink.DocumentID); err != nil {
+				if errors.Is(err, coredata.ErrResourceNotFound) {
+					staleLinkFound = true
+					return nil
+				}
+				return err
+			}
+			hasActiveLink = true
+			return nil
 		},
 	)
-	if err == nil {
+	if err == nil && hasActiveLink {
 		return nil, nil, fmt.Errorf("google drive file is already linked: %w", coredata.ErrResourceAlreadyExists)
 	}
 
@@ -640,6 +657,11 @@ func (s *GoogleDriveService) LinkDocument(
 	err = s.svc.pg.WithTx(
 		ctx,
 		func(ctx context.Context, tx pg.Tx) error {
+			if staleLinkFound {
+				if err := existingLink.Delete(ctx, tx, scope); err != nil {
+					return fmt.Errorf("cannot delete stale external link: %w", err)
+				}
+			}
 			if err := fileRecord.Insert(ctx, tx, scope); err != nil {
 				return fmt.Errorf("cannot insert file record: %w", err)
 			}
@@ -803,7 +825,7 @@ func (s *GoogleDriveService) SyncDocument(
 					Direction: page.OrderDirectionAsc,
 				},
 			)
-			if err := existingVersions.LoadByDocumentID(ctx, tx, scope, document.ID, cursor, nil); err != nil {
+			if err := existingVersions.LoadByDocumentID(ctx, tx, scope, document.ID, cursor, coredata.NewDocumentVersionFilter()); err != nil {
 				return fmt.Errorf("cannot load document versions: %w", err)
 			}
 
@@ -901,10 +923,21 @@ func (s *GoogleDriveService) SyncDocument(
 				document.Status = coredata.DocumentStatusActive
 			} else {
 				// targetStatus is PENDING_APPROVAL or DRAFT
-				if activeNonPublished != nil {
-					if exactMatch != nil && exactMatch.ID != activeNonPublished.ID && exactMatch.Status == coredata.DocumentVersionStatusPublished {
-						targetMinor = exactMatch.Minor + 1
+				findAvailableMinor := func(major, minor int, excludeID gid.GID) int {
+					used := make(map[int]bool)
+					for _, v := range existingVersions {
+						if (excludeID == (gid.GID{}) || v.ID != excludeID) && v.Major == major {
+							used[v.Minor] = true
+						}
 					}
+					for used[minor] {
+						minor++
+					}
+					return minor
+				}
+
+				if activeNonPublished != nil {
+					targetMinor = findAvailableMinor(targetMajor, targetMinor, activeNonPublished.ID)
 					activeNonPublished.Major = targetMajor
 					activeNonPublished.Minor = targetMinor
 					activeNonPublished.Status = targetStatus
@@ -917,9 +950,7 @@ func (s *GoogleDriveService) SyncDocument(
 					}
 					resultVersion = activeNonPublished
 				} else {
-					if exactMatch != nil && exactMatch.Status == coredata.DocumentVersionStatusPublished {
-						targetMinor = exactMatch.Minor + 1
-					}
+					targetMinor = findAvailableMinor(targetMajor, targetMinor, gid.GID{})
 					newVersion := &coredata.DocumentVersion{
 						ID:             gid.New(scope.GetTenantID(), coredata.DocumentVersionEntityType),
 						DocumentID:     document.ID,

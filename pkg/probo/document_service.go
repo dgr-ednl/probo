@@ -1629,6 +1629,11 @@ func (s *DocumentService) deleteDocumentEntityMappings(
 		return fmt.Errorf("cannot delete internal control mappings: %w", err)
 	}
 
+	externalLink := coredata.DocumentExternalLink{}
+	if err := externalLink.DeleteByDocumentIDs(ctx, tx, scope, documentIDs); err != nil {
+		return fmt.Errorf("cannot delete document external links: %w", err)
+	}
+
 	return nil
 }
 
