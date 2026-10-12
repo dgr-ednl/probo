@@ -134,6 +134,13 @@ func UnmarshalConnection(protocol string, provider string, data []byte) (Connect
 		}
 
 		return &conn, nil
+	case string(ProtocolServiceAccount):
+		var conn ServiceAccountConnection
+		if err := json.Unmarshal(data, &conn); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal service account connection: %w", err)
+		}
+
+		return &conn, nil
 	}
 
 	return nil, fmt.Errorf("unknown connection protocol: %s", protocol)

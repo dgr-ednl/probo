@@ -32,6 +32,7 @@ const (
 	ConnectorProtocolAPIKey           ConnectorProtocol = "API_KEY"
 	ConnectorProtocolGitHubApp        ConnectorProtocol = "GITHUB_APP"
 	ConnectorProtocolWorkloadIdentity ConnectorProtocol = "WORKLOAD_IDENTITY"
+	ConnectorProtocolServiceAccount   ConnectorProtocol = "SERVICE_ACCOUNT"
 )
 
 var (
@@ -46,6 +47,7 @@ func ConnectorProtocols() []ConnectorProtocol {
 		ConnectorProtocolAPIKey,
 		ConnectorProtocolGitHubApp,
 		ConnectorProtocolWorkloadIdentity,
+		ConnectorProtocolServiceAccount,
 	}
 }
 
@@ -55,7 +57,8 @@ func (v ConnectorProtocol) IsValid() bool {
 		ConnectorProtocolOAuth2,
 		ConnectorProtocolAPIKey,
 		ConnectorProtocolGitHubApp,
-		ConnectorProtocolWorkloadIdentity:
+		ConnectorProtocolWorkloadIdentity,
+		ConnectorProtocolServiceAccount:
 		return true
 	}
 

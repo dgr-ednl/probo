@@ -121,48 +121,69 @@ func (s *GoogleDriveService) getDriveClient(
 		return nil, nil, fmt.Errorf("connector provider %q is not GOOGLE_DRIVE", connRecord.Provider)
 	}
 
-	oauthConn, ok := connRecord.Connection.(*connector.OAuth2Connection)
-	if !ok {
-		return nil, nil, fmt.Errorf("connector is not an OAuth2 connection")
-	}
+	var driveSvc *drive.Service
 
-	if err := s.svc.connectorRegistry.ConfigureConnection(string(connRecord.Provider), oauthConn); err != nil {
-		return nil, nil, fmt.Errorf("cannot configure Google Drive connector: %w", err)
-	}
+	switch conn := connRecord.Connection.(type) {
+	case *connector.OAuth2Connection:
+		if err := s.svc.connectorRegistry.ConfigureConnection(string(connRecord.Provider), conn); err != nil {
+			return nil, nil, fmt.Errorf("cannot configure Google Drive connector: %w", err)
+		}
 
-	tokenBefore := oauthConn.AccessToken
+		tokenBefore := conn.AccessToken
 
-	var httpClient *http.Client
+		var httpClient *http.Client
 
-	refreshCfg := s.svc.connectorRegistry.GetOAuth2RefreshConfig(string(connRecord.Provider))
-	if refreshCfg != nil {
-		httpClient, err = oauthConn.RefreshableClient(ctx, *refreshCfg)
-	} else {
-		httpClient, err = oauthConn.Client(ctx)
-	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot create Google Drive HTTP client: %w", err)
-	}
+		refreshCfg := s.svc.connectorRegistry.GetOAuth2RefreshConfig(string(connRecord.Provider))
+		if refreshCfg != nil {
+			httpClient, err = conn.RefreshableClient(ctx, *refreshCfg)
+		} else {
+			httpClient, err = conn.Client(ctx)
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot create Google Drive HTTP client: %w", err)
+		}
 
-	if oauthConn.AccessToken != tokenBefore {
-		connRecord.UpdatedAt = time.Now()
-		err := s.svc.pg.WithTx(
+		if conn.AccessToken != tokenBefore {
+			connRecord.UpdatedAt = time.Now()
+			err := s.svc.pg.WithTx(
+				ctx,
+				func(ctx context.Context, tx pg.Tx) error {
+					if err := connRecord.Update(ctx, tx, scope, s.svc.encryptionKey); err != nil {
+						return fmt.Errorf("cannot persist refreshed token: %w", err)
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				return nil, nil, fmt.Errorf("cannot persist refreshed token: %w", err)
+			}
+		}
+
+		driveSvc, err = drive.NewService(ctx, option.WithHTTPClient(httpClient))
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot create Google Drive service client: %w", err)
+		}
+
+	case *connector.ServiceAccountConnection:
+		if err := s.svc.connectorRegistry.ConfigureConnection(string(connRecord.Provider), conn); err != nil {
+			return nil, nil, fmt.Errorf("cannot configure Google Drive connector: %w", err)
+		}
+
+		if conn.CredentialsJSON == "" {
+			return nil, nil, fmt.Errorf("Google Drive service account credentials are empty")
+		}
+
+		driveSvc, err = drive.NewService(
 			ctx,
-			func(ctx context.Context, tx pg.Tx) error {
-				if err := connRecord.Update(ctx, tx, scope, s.svc.encryptionKey); err != nil {
-					return fmt.Errorf("cannot persist refreshed token: %w", err)
-				}
-				return nil
-			},
+			option.WithCredentialsJSON([]byte(conn.CredentialsJSON)),
+			option.WithScopes(drive.DriveReadonlyScope),
 		)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot persist refreshed token: %w", err)
+			return nil, nil, fmt.Errorf("cannot create Google Drive service client: %w", err)
 		}
-	}
 
-	driveSvc, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot create Google Drive service client: %w", err)
+	default:
+		return nil, nil, fmt.Errorf("unsupported connection protocol for Google Drive: %T", connRecord.Connection)
 	}
 
 	return driveSvc, connRecord, nil
@@ -199,7 +220,10 @@ func (s *GoogleDriveService) SearchFiles(
 		Q(strings.Join(qParts, " and ")).
 		Fields("nextPageToken, files(id, name, mimeType, webViewLink, iconLink, modifiedTime, size)").
 		PageSize(pageSize).
-		OrderBy("modifiedTime desc")
+		OrderBy("modifiedTime desc").
+		SupportsAllDrives(true).
+		IncludeItemsFromAllDrives(true).
+		Corpora("allDrives")
 
 	if pageToken != nil && *pageToken != "" {
 		call = call.PageToken(*pageToken)
@@ -297,7 +321,7 @@ func (s *GoogleDriveService) fetchFileContentAndPDF(
 
 	case pdfMimeType:
 		// Direct PDF download
-		pdfResp, err := driveSvc.Files.Get(fileID).Context(ctx).Download()
+		pdfResp, err := driveSvc.Files.Get(fileID).SupportsAllDrives(true).Context(ctx).Download()
 		if err != nil {
 			return "", nil, fmt.Errorf("cannot download Google Drive PDF: %w", err)
 		}
@@ -359,6 +383,7 @@ func (s *GoogleDriveService) LinkDocument(
 	}
 
 	f, err := driveSvc.Files.Get(req.FileID).
+		SupportsAllDrives(true).
 		Fields("id, name, mimeType, webViewLink, iconLink, modifiedTime").
 		Context(ctx).
 		Do()
@@ -510,6 +535,7 @@ func (s *GoogleDriveService) SyncDocument(
 	}
 
 	f, err := driveSvc.Files.Get(externalLink.ExternalID).
+		SupportsAllDrives(true).
 		Fields("id, name, mimeType, webViewLink, iconLink, modifiedTime").
 		Context(ctx).
 		Do()

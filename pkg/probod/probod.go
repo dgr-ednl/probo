@@ -502,6 +502,22 @@ func (impl *Implm) Run(
 			continue
 		}
 
+		if saConn, ok := connectorCfg.Config.(*connector.ServiceAccountConnector); ok {
+			if saConn.CredentialsJSON == "" {
+				return fmt.Errorf("cannot configure service account connector %q: credentials JSON is required", connectorCfg.Provider)
+			}
+
+			if err := defaultConnectorRegistry.RegisterProtocol(
+				connectorCfg.Provider,
+				connector.ProtocolServiceAccount,
+				saConn,
+			); err != nil {
+				return fmt.Errorf("cannot register service account connector: %w", err)
+			}
+
+			continue
+		}
+
 		if oauth2c, ok := connectorCfg.Config.(*connector.OAuth2Connector); ok {
 			if err := providerRegistry.ApplyOAuth2Defaults(connectorCfg.Provider, redirectURI, oauth2c); err != nil {
 				return fmt.Errorf("cannot apply oauth2 defaults: %w", err)

@@ -28,6 +28,8 @@ import (
 
 	"go.gearno.de/kit/httpserver"
 	"go.gearno.de/kit/log"
+	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
 	"go.probo.inc/probo/pkg/connector"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
@@ -74,16 +76,6 @@ func handleConnectorInitiate(
 			return
 		}
 
-		if _, err := connectorRegistry.Lookup(provider, connector.ProtocolOAuth2); err != nil {
-			var p coredata.ConnectorProvider
-			if unmarshalErr := p.UnmarshalText([]byte(provider)); unmarshalErr == nil {
-				fail(http.StatusBadRequest, fmt.Errorf("provider %q is not configured on this server (missing OAuth2 credentials)", provider))
-			} else {
-				fail(http.StatusBadRequest, fmt.Errorf("unsupported provider: %q", provider))
-			}
-			return
-		}
-
 		organizationID, err := gid.ParseGID(r.URL.Query().Get("organization_id"))
 		if err != nil {
 			fail(http.StatusBadRequest, fmt.Errorf("invalid organization_id parameter"))
@@ -115,6 +107,101 @@ func handleConnectorInitiate(
 		})
 		if err != nil {
 			fail(http.StatusForbidden, err)
+			return
+		}
+
+		var connectorProvider coredata.ConnectorProvider
+		if err := connectorProvider.UnmarshalText([]byte(provider)); err != nil {
+			fail(http.StatusBadRequest, fmt.Errorf("unsupported provider: %q", provider))
+			return
+		}
+
+		if saConnRaw, err := connectorRegistry.Lookup(provider, connector.ProtocolServiceAccount); err == nil {
+			if saConnector, ok := saConnRaw.(*connector.ServiceAccountConnector); ok {
+				if connectorProvider == coredata.ConnectorProviderGoogleDrive {
+					driveSvc, err := drive.NewService(
+						r.Context(),
+						option.WithCredentialsJSON([]byte(saConnector.CredentialsJSON)),
+						option.WithScopes(drive.DriveReadonlyScope),
+					)
+					if err != nil {
+						fail(http.StatusBadRequest, fmt.Errorf("invalid Google Drive service account credentials: %w", err))
+						return
+					}
+
+					_, err = driveSvc.Files.List().
+						PageSize(1).
+						SupportsAllDrives(true).
+						IncludeItemsFromAllDrives(true).
+						Corpora("allDrives").
+						Context(r.Context()).
+						Do()
+					if err != nil {
+						fail(http.StatusBadRequest, fmt.Errorf("cannot access Google Drive with service account: %w", err))
+						return
+					}
+				}
+
+				existing, err := loadExistingConnector(r, proboSvc, scope)
+				if err != nil && !errors.Is(err, coredata.ErrResourceNotFound) {
+					fail(http.StatusBadRequest, err)
+					return
+				}
+
+				if existing == nil {
+					allConns, err := proboSvc.Connectors.ListAllForOrganizationID(r.Context(), scope, organizationID)
+					if err == nil {
+						for _, c := range allConns {
+							if c.Provider == connectorProvider {
+								existing, _ = proboSvc.Connectors.GetWithConnection(r.Context(), scope, c.ID)
+								break
+							}
+						}
+					}
+				}
+
+				connObj := &connector.ServiceAccountConnection{
+					FolderID: saConnector.FolderID,
+				}
+
+				if existing != nil {
+					_, err = proboSvc.Connectors.Reconnect(r.Context(), scope, probo.ReconnectConnectorRequest{
+						ConnectorID:    existing.ID,
+						OrganizationID: organizationID,
+						Provider:       connectorProvider,
+						Connection:     connObj,
+					})
+					if err != nil {
+						logger.ErrorCtx(r.Context(), "cannot reconnect service account connector", log.Error(err))
+						fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+						return
+					}
+				} else {
+					_, err = proboSvc.Connectors.Create(r.Context(), scope, probo.CreateConnectorRequest{
+						OrganizationID: organizationID,
+						Provider:       connectorProvider,
+						Protocol:       coredata.ConnectorProtocolServiceAccount,
+						Connection:     connObj,
+					})
+					if err != nil {
+						logger.ErrorCtx(r.Context(), "cannot create service account connector", log.Error(err))
+						fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+						return
+					}
+				}
+
+				if continueURL != "" && safeRedirect != nil {
+					safeRedirect.Redirect(w, r, continueURL, "/", http.StatusSeeOther)
+					return
+				}
+
+				http.Redirect(w, r, fmt.Sprintf("/organizations/%s", organizationID), http.StatusSeeOther)
+				return
+			}
+		}
+
+		if _, err := connectorRegistry.Lookup(provider, connector.ProtocolOAuth2); err != nil {
+			fail(http.StatusBadRequest, fmt.Errorf("provider %q is not configured on this server (missing OAuth2 or Service Account credentials)", provider))
 			return
 		}
 

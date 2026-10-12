@@ -62,6 +62,8 @@ func CapabilityProbe(protocol ProtocolType) Connection {
 		return &GitHubAppConnection{}
 	case ProtocolWorkloadIdentity:
 		return &WorkloadIdentityConnection{}
+	case ProtocolServiceAccount:
+		return &ServiceAccountConnection{}
 	default:
 		return nil
 	}

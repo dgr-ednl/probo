@@ -118,3 +118,31 @@ func TestConnectorConfig_GitHubAppRoundTrip(t *testing.T) {
 	assert.Equal(t, "probo", gitHubApp.Slug)
 	assert.Equal(t, "private-key", gitHubApp.PrivateKey)
 }
+
+func TestConnectorConfig_ServiceAccountRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	original := probodconfig.ConnectorConfig{
+		Provider: "GOOGLE_DRIVE",
+		Protocol: connector.ProtocolServiceAccount,
+		RawConfig: probodconfig.ConnectorConfigServiceAccount{
+			CredentialsJSON: `{"type": "service_account"}`,
+			FolderID:        "folder-xyz",
+		},
+	}
+
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var got probodconfig.ConnectorConfig
+	require.NoError(t, json.Unmarshal(data, &got))
+
+	assert.Equal(t, "GOOGLE_DRIVE", got.Provider)
+	assert.Equal(t, connector.ProtocolServiceAccount, got.Protocol)
+
+	saConn, ok := got.Config.(*connector.ServiceAccountConnector)
+	require.True(t, ok)
+	assert.Equal(t, `{"type": "service_account"}`, saConn.CredentialsJSON)
+	assert.Equal(t, "folder-xyz", saConn.FolderID)
+}
+

@@ -576,6 +576,31 @@ func (b *Builder) Build() (*probodconfig.FullConfig, error) {
 		)
 	}
 
+	var googleDriveSAJSON string
+	if saFile := b.resolver.getEnv("PROBOD_CONNECTOR_GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE"); saFile != "" {
+		data, err := os.ReadFile(saFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read service account file %q: %w", saFile, err)
+		}
+		googleDriveSAJSON = string(data)
+	}
+	if googleDriveSAJSON == "" {
+		googleDriveSAJSON = b.resolver.getEnv("PROBOD_CONNECTOR_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+	}
+	if googleDriveSAJSON != "" {
+		cfg.Probod.Connectors = append(
+			cfg.Probod.Connectors,
+			probodconfig.ConnectorConfig{
+				Provider: "GOOGLE_DRIVE",
+				Protocol: connector.ProtocolServiceAccount,
+				RawConfig: probodconfig.ConnectorConfigServiceAccount{
+					CredentialsJSON: googleDriveSAJSON,
+					FolderID:        b.resolver.getEnv("PROBOD_CONNECTOR_GOOGLE_DRIVE_FOLDER_ID"),
+				},
+			},
+		)
+	}
+
 	if microsoft365ClientID := b.resolver.getEnv("PROBOD_CONNECTOR_MICROSOFT_365_CLIENT_ID"); microsoft365ClientID != "" {
 		cfg.Probod.Connectors = append(
 			cfg.Probod.Connectors,

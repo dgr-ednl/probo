@@ -785,6 +785,50 @@ func TestBuilder_Build_GoogleDriveConnector(t *testing.T) {
 	assert.Equal(t, "gd-client-secret", rawConfig.ClientSecret)
 }
 
+func TestBuilder_Build_GoogleDriveServiceAccountConnector_JSON(t *testing.T) {
+	env := requiredEnv()
+	env["PROBOD_CONNECTOR_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"] = `{"type": "service_account"}`
+
+	b := NewBuilder(NewResolver(mockEnv(env)))
+	b.samlCertificate = "test-cert"
+	b.samlPrivateKey = testSigningKeyPEM()
+
+	cfg, err := b.Build()
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Probod.Connectors, 1)
+	conn := cfg.Probod.Connectors[0]
+	assert.Equal(t, "GOOGLE_DRIVE", conn.Provider)
+	assert.Equal(t, "SERVICE_ACCOUNT", string(conn.Protocol))
+	rawConfig := conn.RawConfig.(probodconfig.ConnectorConfigServiceAccount)
+	assert.Equal(t, `{"type": "service_account"}`, rawConfig.CredentialsJSON)
+}
+
+func TestBuilder_Build_GoogleDriveServiceAccountConnector_File(t *testing.T) {
+	dir := t.TempDir()
+	saFile := filepath.Join(dir, "sa.json")
+	require.NoError(t, os.WriteFile(saFile, []byte(`{"type": "service_account_from_file"}`), 0600))
+
+	env := requiredEnv()
+	env["PROBOD_CONNECTOR_GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE"] = saFile
+	env["PROBOD_CONNECTOR_GOOGLE_DRIVE_FOLDER_ID"] = "test-folder"
+
+	b := NewBuilder(NewResolver(mockEnv(env)))
+	b.samlCertificate = "test-cert"
+	b.samlPrivateKey = testSigningKeyPEM()
+
+	cfg, err := b.Build()
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Probod.Connectors, 1)
+	conn := cfg.Probod.Connectors[0]
+	assert.Equal(t, "GOOGLE_DRIVE", conn.Provider)
+	assert.Equal(t, "SERVICE_ACCOUNT", string(conn.Protocol))
+	rawConfig := conn.RawConfig.(probodconfig.ConnectorConfigServiceAccount)
+	assert.Equal(t, `{"type": "service_account_from_file"}`, rawConfig.CredentialsJSON)
+	assert.Equal(t, "test-folder", rawConfig.FolderID)
+}
+
 func TestBuilder_Build_GitHubAppConnector(t *testing.T) {
 	t.Parallel()
 

@@ -105,6 +105,11 @@ type ConnectorConfigAPIKey struct {
 	ResourceID string `json:"resource-id,omitempty"`
 }
 
+type ConnectorConfigServiceAccount struct {
+	CredentialsJSON string `json:"credentials-json"`
+	FolderID        string `json:"folder-id,omitempty"`
+}
+
 func (c *Config) GetLinearWebhookSecret() string {
 	for _, conn := range c.Connectors {
 		if conn.Provider == "LINEAR_SYNC" {
@@ -206,6 +211,16 @@ func (c *ConnectorConfig) UnmarshalJSON(data []byte) error {
 			ClientSecret: config.ClientSecret,
 			Slug:         config.Slug,
 			PrivateKey:   config.PrivateKey,
+		}
+	case connector.ProtocolServiceAccount:
+		var config ConnectorConfigServiceAccount
+		if err := json.NewDecoder(bytes.NewReader(tmp.RawConfig)).Decode(&config); err != nil {
+			return fmt.Errorf("cannot unmarshal service account connector config: %w", err)
+		}
+
+		c.Config = &connector.ServiceAccountConnector{
+			CredentialsJSON: config.CredentialsJSON,
+			FolderID:        config.FolderID,
 		}
 	default:
 		return fmt.Errorf("unknown connector protocol: %q", c.Protocol)
