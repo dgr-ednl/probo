@@ -23,10 +23,10 @@ import {
   IconArrowInbox,
   IconChevronLeft,
   IconChevronRight,
+  IconMinusLarge,
   IconPlusLarge,
   Spinner,
 } from "@probo/ui";
-import { IconMinusLarge } from "@probo/ui/src/Atoms/Icons/IconMinusLarge";
 // Vite `?url` import resolves to the bundled worker URL (string); the import-x
 // resolver doesn't understand the suffix, and `vite/client` types cover it.
 // eslint-disable-next-line import-x/default
@@ -153,7 +153,7 @@ export function PDFPreview({ src, name }: { src: string; name?: string }) {
       >
         <Document
           file={src}
-          key={src + "document"}
+          key={name || "pdf-document"}
           onLoadSuccess={onDocumentLoadSuccess}
           className="flex flex-col gap-4 py-10"
           ref={documentRef}

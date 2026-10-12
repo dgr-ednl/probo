@@ -555,7 +555,8 @@
     },
     "errors": {
       "title": "Erreur",
-      "save": "Contenu non enregistré"
+      "save": "Contenu non enregistré",
+      "loadPdf": "Échec du chargement de l'aperçu PDF"
     },
     "googleDrive": {
       "syncedWithDrive": "Synchronisé avec Google Drive",
@@ -564,7 +565,8 @@
       "openInDrive": "Ouvrir dans Google Drive",
       "syncNow": "Synchroniser maintenant",
       "syncSuccess": "Document synchronisé avec Google Drive",
-      "syncError": "Échec de la synchronisation du document avec Google Drive"
+      "syncError": "Échec de la synchronisation du document avec Google Drive",
+      "retry": "Réessayer"
     }
   },
   "documentSignaturesPage": {
@@ -3108,6 +3110,7 @@
       "connectWithClientCredentials": "Identifiants client",
       "connectWithWorkloadIdentity": "Identité de charge de travail",
       "connectWithAppInstall": "Installation de l’application",
+      "connectWithServiceAccount": "Compte de service",
       "chooseAnotherMethod": "Choisir une autre méthode de connexion",
       "open": "Ouvrir"
     },

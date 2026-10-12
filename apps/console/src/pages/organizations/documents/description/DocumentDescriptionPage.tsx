@@ -21,7 +21,7 @@
 import { ArrowSquareOutIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { formatError } from "@probo/helpers";
 import { dateFormat } from "@probo/i18n";
-import { Badge, Button, GoogleLogo, RichEditor, useToast } from "@probo/ui";
+import { Badge, Button, GoogleLogo, RichEditor, Spinner, useToast } from "@probo/ui";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type PreloadedQuery, useMutation, usePreloadedQuery } from "react-relay";
@@ -32,6 +32,9 @@ import { useDebounceCallback } from "usehooks-ts";
 import type { DocumentDescriptionPage_syncMutation } from "#/__generated__/core/DocumentDescriptionPage_syncMutation.graphql";
 import type { DocumentDescriptionPage_updateContentMutation } from "#/__generated__/core/DocumentDescriptionPage_updateContentMutation.graphql";
 import type { DocumentDescriptionPageQuery } from "#/__generated__/core/DocumentDescriptionPageQuery.graphql";
+import { PDFPreview } from "#/components/documents/PDFPreview";
+
+import { useExportDocumentPdf } from "../_lib/useExportDocumentPdf";
 
 const autoSaveIntervalMs = 1000;
 
@@ -42,6 +45,7 @@ export const documentDescriptionPageQuery = graphql`
       __typename
       ... on DocumentVersion {
         id
+        title
         content
         status
       }
@@ -63,6 +67,7 @@ export const documentDescriptionPageQuery = graphql`
           edges {
             node {
               id
+              title
               content
               status
             }
@@ -213,6 +218,7 @@ export function DocumentDescriptionPage(props: {
           variant: "success",
         });
         onDocumentUpdated();
+        reloadPdf();
       },
       onError(error) {
         toast({
@@ -225,6 +231,16 @@ export function DocumentDescriptionPage(props: {
   };
 
   const isGoogleDrive = document.writeMode === "GOOGLE_DRIVE";
+
+  const {
+    dataUri: pdfDataUri,
+    isLoading: isPdfLoading,
+    error: pdfError,
+    reload: reloadPdf,
+  } = useExportDocumentPdf(
+    isGoogleDrive ? currentVersion.id : null,
+    document.externalLink?.lastSyncedAt,
+  );
 
   const canEdit = isEditable
     && document.canUpdate
@@ -319,14 +335,38 @@ export function DocumentDescriptionPage(props: {
           </div>
         </div>
       )}
-      <RichEditor
-        key={editorKey}
-        className="flex-1"
-        content={currentVersion.content}
-        data-theme="document"
-        disabled={!canEdit}
-        onChangeContent={handleUpdate}
-      />
+      {isGoogleDrive ? (
+        <div className="flex-1 min-h-[750px] h-[calc(100vh-280px)] rounded-lg overflow-hidden border border-border-primary">
+          {isPdfLoading ? (
+            <div className="flex items-center justify-center h-full bg-bg-secondary">
+              <Spinner size={24} />
+            </div>
+          ) : pdfDataUri ? (
+            <PDFPreview
+              src={pdfDataUri}
+              name={`${currentVersion.title || "document"}.pdf`}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 bg-bg-secondary p-6">
+              <p className="text-sm text-txt-secondary">
+                {pdfError?.message || t("documentDescriptionPage.errors.loadPdf")}
+              </p>
+              <Button variant="secondary" onClick={reloadPdf}>
+                {t("documentDescriptionPage.googleDrive.retry")}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <RichEditor
+          key={editorKey}
+          className="flex-1"
+          content={currentVersion.content}
+          data-theme="document"
+          disabled={!canEdit}
+          onChangeContent={handleUpdate}
+        />
+      )}
     </div>
   );
 }

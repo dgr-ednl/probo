@@ -39,6 +39,7 @@ const connectMethodPreference: ReadonlyArray<ConnectMethod> = [
   "GITHUB_APP",
   "INSTALL",
   "OAUTH2",
+  "SERVICE_ACCOUNT",
   "API_KEY",
   "CLIENT_CREDENTIALS",
 ];
@@ -53,7 +54,7 @@ export function connectMethods({
 }: ConnectMethodSupport): ReadonlyArray<ConnectMethod> {
   const supportedMethods = new Set<ConnectMethod>(
     configuredProtocols.filter(
-      protocol => protocol === "GITHUB_APP" || protocol === "OAUTH2",
+      protocol => protocol === "GITHUB_APP" || protocol === "OAUTH2" || protocol === "SERVICE_ACCOUNT",
     ),
   );
 

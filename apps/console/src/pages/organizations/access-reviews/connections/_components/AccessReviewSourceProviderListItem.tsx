@@ -58,6 +58,8 @@ const connectMethodActionLabelKey: Record<ConnectMethod, string> = {
   CLIENT_CREDENTIALS:
     "addAccessReviewSourceDialog.actions.connectWithClientCredentials",
   INSTALL: "addAccessReviewSourceDialog.actions.connectWithAppInstall",
+  SERVICE_ACCOUNT:
+    "addAccessReviewSourceDialog.actions.connectWithServiceAccount",
 };
 
 export const accessReviewSourceProviderListItemFragment = graphql`
@@ -146,6 +148,7 @@ export function AccessReviewSourceProviderListItem({
         setActiveDialog("clientCredentials");
         break;
       case "GITHUB_APP":
+      case "SERVICE_ACCOUNT":
         connectProviderProtocol(
           organizationId,
           provider.provider,

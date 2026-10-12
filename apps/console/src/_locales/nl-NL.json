@@ -555,7 +555,8 @@
     },
     "errors": {
       "title": "Fout",
-      "save": "Inhoud niet opgeslagen"
+      "save": "Inhoud niet opgeslagen",
+      "loadPdf": "Kon PDF-voorbeeld niet laden"
     },
     "googleDrive": {
       "syncedWithDrive": "Gesynchroniseerd met Google Drive",
@@ -564,7 +565,8 @@
       "openInDrive": "Openen in Google Drive",
       "syncNow": "Nu synchroniseren",
       "syncSuccess": "Document gesynchroniseerd met Google Drive",
-      "syncError": "Synchroniseren van document met Google Drive mislukt"
+      "syncError": "Synchroniseren van document met Google Drive mislukt",
+      "retry": "Opnieuw proberen"
     }
   },
   "documentSignaturesPage": {
@@ -3108,6 +3110,7 @@
       "connectWithClientCredentials": "Clientreferenties",
       "connectWithWorkloadIdentity": "Workload-identiteit",
       "connectWithAppInstall": "App-installatie",
+      "connectWithServiceAccount": "Serviceaccount",
       "chooseAnotherMethod": "Kies een andere verbindingsmethode",
       "open": "Open"
     },
