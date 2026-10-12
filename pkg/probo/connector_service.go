@@ -430,9 +430,7 @@ func (s *ConnectorService) Reconnect(
 			}
 
 			expectedProtocol := coredata.ConnectorProtocol(req.Connection.Type())
-			if cnnctr.Protocol != expectedProtocol {
-				return fmt.Errorf("cannot reconnect connector: protocol mismatch")
-			}
+			cnnctr.Protocol = expectedProtocol
 
 			preserveConnectionFields(req.Connection, cnnctr.Connection)
 			cnnctr.Connection = req.Connection

@@ -173,7 +173,7 @@ func handleConnectorInitiate(
 					})
 					if err != nil {
 						logger.ErrorCtx(r.Context(), "cannot reconnect service account connector", log.Error(err))
-						fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+						fail(http.StatusInternalServerError, fmt.Errorf("cannot reconnect connector: %w", err))
 						return
 					}
 				} else {
@@ -185,7 +185,7 @@ func handleConnectorInitiate(
 					})
 					if err != nil {
 						logger.ErrorCtx(r.Context(), "cannot create service account connector", log.Error(err))
-						fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+						fail(http.StatusInternalServerError, fmt.Errorf("cannot create connector: %w", err))
 						return
 					}
 				}
@@ -226,7 +226,7 @@ func handleConnectorInitiate(
 			}
 
 			logger.ErrorCtx(r.Context(), "cannot look up existing connector", log.Error(err))
-			fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+			fail(http.StatusInternalServerError, fmt.Errorf("cannot look up existing connector: %w", err))
 
 			return
 		}
@@ -252,7 +252,7 @@ func handleConnectorInitiate(
 		)
 		if err != nil {
 			logger.ErrorCtx(r.Context(), "cannot initiate connector", log.Error(err))
-			fail(http.StatusInternalServerError, fmt.Errorf("internal error"))
+			fail(http.StatusInternalServerError, fmt.Errorf("cannot initiate connector: %w", err))
 
 			return
 		}

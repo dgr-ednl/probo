@@ -670,6 +670,7 @@ func (c *Connector) Update(
 	q := `
 UPDATE connectors
 SET
+    protocol = @protocol,
     settings = @settings,
     encrypted_connection = @encrypted_connection,
     updated_at = @updated_at
@@ -712,6 +713,7 @@ WHERE
 
 	args := pgx.StrictNamedArgs{
 		"id":                   c.ID,
+		"protocol":             c.Protocol,
 		"settings":             settingsArg,
 		"encrypted_connection": encryptedConnection,
 		"updated_at":           c.UpdatedAt,
