@@ -1036,7 +1036,7 @@ func (r *mutationResolver) LinkGoogleDriveDocument(ctx context.Context, input ty
 		}
 
 		r.logger.ErrorCtx(ctx, "cannot link Google Drive document", log.Error(err))
-		return nil, gqlutils.Internal(ctx)
+		return nil, gqlutils.Unavailable(ctx, err)
 	}
 
 	return &types.LinkGoogleDriveDocumentPayload{
@@ -1069,7 +1069,7 @@ func (r *mutationResolver) SyncGoogleDriveDocument(ctx context.Context, input ty
 		}
 
 		r.logger.ErrorCtx(ctx, "cannot sync Google Drive document", log.Error(err))
-		return nil, gqlutils.Internal(ctx)
+		return nil, gqlutils.Unavailable(ctx, err)
 	}
 
 	payload := &types.SyncGoogleDriveDocumentPayload{

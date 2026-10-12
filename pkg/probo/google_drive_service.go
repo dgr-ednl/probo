@@ -432,6 +432,7 @@ func (s *GoogleDriveService) LinkDocument(
 	document := &coredata.Document{
 		ID:                    gid.New(scope.GetTenantID(), coredata.DocumentEntityType),
 		OrganizationID:        req.OrganizationID,
+		Title:                 title,
 		CurrentPublishedMajor: ref.Ref(1),
 		CurrentPublishedMinor: ref.Ref(0),
 		WriteMode:             coredata.DocumentWriteModeGoogleDrive,
@@ -447,6 +448,7 @@ func (s *GoogleDriveService) LinkDocument(
 		Title:          title,
 		DocumentType:   coredata.DocumentTypePolicy,
 		Classification: coredata.DocumentClassificationInternal,
+		Orientation:    coredata.DocumentVersionOrientationPortrait,
 		Major:          1,
 		Minor:          0,
 		Status:         coredata.DocumentVersionStatusPublished,
@@ -588,13 +590,19 @@ func (s *GoogleDriveService) SyncDocument(
 		return nil, nil, nil, fmt.Errorf("cannot load latest document version: %w", err)
 	}
 
+	orientation := latestVersion.Orientation
+	if orientation == "" {
+		orientation = coredata.DocumentVersionOrientationPortrait
+	}
+
 	newVersion := &coredata.DocumentVersion{
 		ID:             gid.New(scope.GetTenantID(), coredata.DocumentVersionEntityType),
 		DocumentID:     document.ID,
 		OrganizationID: document.OrganizationID,
-		Title:          document.Title,
+		Title:          latestVersion.Title,
 		DocumentType:   latestVersion.DocumentType,
 		Classification: latestVersion.Classification,
+		Orientation:    orientation,
 		Major:          latestVersion.Major,
 		Minor:          latestVersion.Minor + 1,
 		Status:         coredata.DocumentVersionStatusPublished,
