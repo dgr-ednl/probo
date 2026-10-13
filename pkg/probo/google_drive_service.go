@@ -398,8 +398,32 @@ func (s *GoogleDriveService) fetchFileContentAndPDF(
 }
 
 type googleDriveApprovalState struct {
-	status       coredata.DocumentVersionStatus
-	completeTime *time.Time
+	status             coredata.DocumentVersionStatus
+	hasInProgress      bool
+	inProgressApproval *drive.Approval
+	latestApproved     *drive.Approval
+	latestApprovedTime *time.Time
+}
+
+type googleDriveLinkMetadata struct {
+	LastPublishedApprovalID   string     `json:"last_published_approval_id,omitempty"`
+	LastPublishedApprovalTime *time.Time `json:"last_published_approval_time,omitempty"`
+}
+
+func parseGoogleDriveLinkMetadata(data json.RawMessage) googleDriveLinkMetadata {
+	var meta googleDriveLinkMetadata
+	if len(data) > 0 {
+		_ = json.Unmarshal(data, &meta)
+	}
+	return meta
+}
+
+func serializeGoogleDriveLinkMetadata(meta googleDriveLinkMetadata) json.RawMessage {
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+	return json.RawMessage(b)
 }
 
 func (s *GoogleDriveService) getDocumentApprovalState(
@@ -430,9 +454,10 @@ func (s *GoogleDriveService) getDocumentApprovalState(
 	}
 
 	var (
-		latestApproved     *drive.Approval
-		latestApprovedTime time.Time
-		latestInProgress   *drive.Approval
+		latestApproved       *drive.Approval
+		latestApprovedTime   time.Time
+		latestInProgress     *drive.Approval
+		latestInProgressTime time.Time
 	)
 
 	for _, item := range approvalList.Items {
@@ -450,31 +475,38 @@ func (s *GoogleDriveService) getDocumentApprovalState(
 				latestApprovedTime = t
 			}
 		case "IN_PROGRESS":
-			if latestInProgress == nil {
+			t, _ := time.Parse(time.RFC3339, item.CreateTime)
+			if t.IsZero() {
+				t, _ = time.Parse(time.RFC3339, item.ModifyTime)
+			}
+			if latestInProgress == nil || t.After(latestInProgressTime) {
 				latestInProgress = item
+				latestInProgressTime = t
 			}
 		}
 	}
 
-	if latestApproved != nil {
-		res := googleDriveApprovalState{
-			status: coredata.DocumentVersionStatusPublished,
-		}
-		if !latestApprovedTime.IsZero() {
-			res.completeTime = &latestApprovedTime
-		}
-		return res
+	res := googleDriveApprovalState{
+		inProgressApproval: latestInProgress,
+		latestApproved:     latestApproved,
+	}
+	if !latestApprovedTime.IsZero() {
+		res.latestApprovedTime = &latestApprovedTime
 	}
 
 	if latestInProgress != nil {
-		return googleDriveApprovalState{
-			status: coredata.DocumentVersionStatusPendingApproval,
-		}
+		res.hasInProgress = true
+		res.status = coredata.DocumentVersionStatusPendingApproval
+		return res
 	}
 
-	return googleDriveApprovalState{
-		status: coredata.DocumentVersionStatusDraft,
+	if latestApproved != nil {
+		res.status = coredata.DocumentVersionStatusPublished
+		return res
 	}
+
+	res.status = coredata.DocumentVersionStatusDraft
+	return res
 }
 
 func (s *GoogleDriveService) LinkDocument(
@@ -572,36 +604,43 @@ func (s *GoogleDriveService) LinkDocument(
 		minor       int
 		status      coredata.DocumentVersionStatus
 		publishedAt *time.Time
+		linkMeta    googleDriveLinkMetadata
 	)
 
-	switch approvalState.status {
-	case coredata.DocumentVersionStatusPublished:
-		status = coredata.DocumentVersionStatusPublished
-		m, n, ok := parseVersionFromFileName(f.Name)
-		if ok {
-			major, minor = m, n
-		} else {
-			major, minor = 1, 0
-		}
-		if approvalState.completeTime != nil {
-			publishedAt = approvalState.completeTime
-		} else {
-			publishedAt = &now
-		}
+	fileMajor, fileMinor, hasVersionInName := parseVersionFromFileName(f.Name)
 
-	case coredata.DocumentVersionStatusPendingApproval:
+	switch {
+	case approvalState.hasInProgress:
 		status = coredata.DocumentVersionStatusPendingApproval
-		m, n, ok := parseVersionFromFileName(f.Name)
-		if ok {
-			major, minor = m, n
+		if hasVersionInName {
+			major, minor = fileMajor, fileMinor
 		} else {
 			major, minor = 1, 0
 		}
 		publishedAt = nil
 
+	case approvalState.latestApproved != nil:
+		status = coredata.DocumentVersionStatusPublished
+		if hasVersionInName {
+			major, minor = fileMajor, fileMinor
+		} else {
+			major, minor = 1, 0
+		}
+		if approvalState.latestApprovedTime != nil {
+			publishedAt = approvalState.latestApprovedTime
+		} else {
+			publishedAt = &now
+		}
+		linkMeta.LastPublishedApprovalID = approvalState.latestApproved.ApprovalId
+		linkMeta.LastPublishedApprovalTime = approvalState.latestApprovedTime
+
 	default: // Draft
 		status = coredata.DocumentVersionStatusDraft
-		major, minor = 0, 1
+		if hasVersionInName {
+			major, minor = fileMajor, fileMinor
+		} else {
+			major, minor = 0, 1
+		}
 		publishedAt = nil
 	}
 
@@ -649,7 +688,7 @@ func (s *GoogleDriveService) LinkDocument(
 		ExternalURL:    f.WebViewLink,
 		MimeType:       &f.MimeType,
 		LastSyncedAt:   now,
-		Metadata:       json.RawMessage("{}"),
+		Metadata:       serializeGoogleDriveLinkMetadata(linkMeta),
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -729,6 +768,202 @@ func (s *GoogleDriveService) SyncDocument(
 		return nil, nil, nil, fmt.Errorf("cannot get Google Drive file metadata: %w", err)
 	}
 
+	var existingVersions coredata.DocumentVersions
+	cursor := page.NewCursor(
+		100,
+		nil,
+		page.Head,
+		page.OrderBy[coredata.DocumentVersionOrderField]{
+			Field:     coredata.DocumentVersionOrderFieldCreatedAt,
+			Direction: page.OrderDirectionAsc,
+		},
+	)
+	err = s.svc.pg.WithConn(
+		ctx,
+		func(ctx context.Context, conn pg.Querier) error {
+			return existingVersions.LoadByDocumentID(ctx, conn, scope, document.ID, cursor, coredata.NewDocumentVersionFilter())
+		},
+	)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("cannot load existing document versions: %w", err)
+	}
+
+	var (
+		activeNonPublished   *coredata.DocumentVersion
+		lastPublishedVersion *coredata.DocumentVersion
+		latestVersion        *coredata.DocumentVersion
+	)
+
+	for _, v := range existingVersions {
+		if latestVersion == nil || v.CreatedAt.After(latestVersion.CreatedAt) {
+			latestVersion = v
+		}
+		if v.Status == coredata.DocumentVersionStatusDraft || v.Status == coredata.DocumentVersionStatusPendingApproval {
+			activeNonPublished = v
+		}
+		if v.Status == coredata.DocumentVersionStatusPublished {
+			if lastPublishedVersion == nil || v.Major > lastPublishedVersion.Major || (v.Major == lastPublishedVersion.Major && v.Minor > lastPublishedVersion.Minor) {
+				lastPublishedVersion = v
+			}
+		}
+	}
+
+	approvalState := s.getDocumentApprovalState(ctx, driveSvc, f.Id)
+	linkMeta := parseGoogleDriveLinkMetadata(externalLink.Metadata)
+	hasPublishedVersion := (document.CurrentPublishedMajor != nil && document.CurrentPublishedMinor != nil) || lastPublishedVersion != nil
+	fileMajor, fileMinor, hasVersionInName := parseVersionFromFileName(f.Name)
+
+	var (
+		targetStatus       coredata.DocumentVersionStatus
+		targetMajor        int
+		targetMinor        int
+		publishedAt        *time.Time
+		shouldFetchContent bool
+	)
+
+	if approvalState.hasInProgress {
+		// New version is currently in progress / awaiting approval in Google Drive.
+		targetStatus = coredata.DocumentVersionStatusPendingApproval
+		shouldFetchContent = true
+
+		if hasVersionInName {
+			targetMajor, targetMinor = fileMajor, fileMinor
+		} else if hasPublishedVersion {
+			targetMajor = *document.CurrentPublishedMajor
+			targetMinor = *document.CurrentPublishedMinor + 1
+		} else {
+			targetMajor, targetMinor = 1, 0
+		}
+
+		if hasPublishedVersion && (targetMajor < *document.CurrentPublishedMajor || (targetMajor == *document.CurrentPublishedMajor && targetMinor <= *document.CurrentPublishedMinor)) {
+			targetMajor = *document.CurrentPublishedMajor
+			targetMinor = *document.CurrentPublishedMinor + 1
+		}
+	} else if hasPublishedVersion {
+		// Document has a published version in Probo, and no approval is currently in progress.
+		// Check whether a NEW approval was completed in Google Drive.
+		isNewApproval := false
+		if approvalState.latestApproved != nil {
+			if linkMeta.LastPublishedApprovalID != "" {
+				if approvalState.latestApproved.ApprovalId != linkMeta.LastPublishedApprovalID {
+					isNewApproval = true
+				}
+			} else if lastPublishedVersion != nil {
+				publishedTime := lastPublishedVersion.CreatedAt
+				if lastPublishedVersion.PublishedAt != nil {
+					publishedTime = *lastPublishedVersion.PublishedAt
+				}
+				if approvalState.latestApprovedTime != nil && approvalState.latestApprovedTime.After(publishedTime) {
+					if hasVersionInName && (fileMajor > lastPublishedVersion.Major || (fileMajor == lastPublishedVersion.Major && fileMinor > lastPublishedVersion.Minor)) {
+						isNewApproval = true
+					}
+				}
+			}
+		}
+
+		if isNewApproval {
+			targetStatus = coredata.DocumentVersionStatusPublished
+			shouldFetchContent = true
+
+			if hasVersionInName {
+				targetMajor, targetMinor = fileMajor, fileMinor
+			} else if activeNonPublished != nil {
+				targetMajor, targetMinor = activeNonPublished.Major, activeNonPublished.Minor
+			} else {
+				targetMajor = *document.CurrentPublishedMajor
+				targetMinor = *document.CurrentPublishedMinor + 1
+			}
+
+			if targetMajor < *document.CurrentPublishedMajor || (targetMajor == *document.CurrentPublishedMajor && targetMinor <= *document.CurrentPublishedMinor) {
+				targetMajor = *document.CurrentPublishedMajor
+				targetMinor = *document.CurrentPublishedMinor + 1
+			}
+
+			if approvalState.latestApprovedTime != nil {
+				publishedAt = approvalState.latestApprovedTime
+			} else {
+				now := time.Now()
+				publishedAt = &now
+			}
+
+			linkMeta.LastPublishedApprovalID = approvalState.latestApproved.ApprovalId
+			linkMeta.LastPublishedApprovalTime = approvalState.latestApprovedTime
+		} else {
+			// No in-progress approval and no new completed approval in Google Drive.
+			// Any modifications made in Google Docs are unapproved draft edits.
+			// Do NOT overwrite the published version; retain the last approved version.
+			shouldFetchContent = false
+
+			if linkMeta.LastPublishedApprovalID == "" && approvalState.latestApproved != nil {
+				linkMeta.LastPublishedApprovalID = approvalState.latestApproved.ApprovalId
+				linkMeta.LastPublishedApprovalTime = approvalState.latestApprovedTime
+			}
+		}
+	} else {
+		// Document was never published in Probo.
+		shouldFetchContent = true
+
+		if approvalState.latestApproved != nil {
+			targetStatus = coredata.DocumentVersionStatusPublished
+			if hasVersionInName {
+				targetMajor, targetMinor = fileMajor, fileMinor
+			} else {
+				targetMajor, targetMinor = 1, 0
+			}
+			if approvalState.latestApprovedTime != nil {
+				publishedAt = approvalState.latestApprovedTime
+			} else {
+				now := time.Now()
+				publishedAt = &now
+			}
+			linkMeta.LastPublishedApprovalID = approvalState.latestApproved.ApprovalId
+			linkMeta.LastPublishedApprovalTime = approvalState.latestApprovedTime
+		} else {
+			targetStatus = coredata.DocumentVersionStatusDraft
+			if hasVersionInName {
+				targetMajor, targetMinor = fileMajor, fileMinor
+			} else {
+				targetMajor, targetMinor = 0, 1
+			}
+		}
+	}
+
+	if !shouldFetchContent {
+		var resultVersion *coredata.DocumentVersion
+		now := time.Now()
+
+		err = s.svc.pg.WithTx(
+			ctx,
+			func(ctx context.Context, tx pg.Tx) error {
+				if activeNonPublished != nil {
+					if err := activeNonPublished.Delete(ctx, tx, scope); err != nil {
+						return fmt.Errorf("cannot delete superseded active version: %w", err)
+					}
+				}
+
+				externalLink.ExternalURL = f.WebViewLink
+				externalLink.MimeType = &f.MimeType
+				externalLink.LastSyncedAt = now
+				externalLink.Metadata = serializeGoogleDriveLinkMetadata(linkMeta)
+				externalLink.UpdatedAt = now
+				if err := externalLink.Update(ctx, tx, scope); err != nil {
+					return fmt.Errorf("cannot update external link: %w", err)
+				}
+
+				resultVersion = lastPublishedVersion
+				if resultVersion == nil {
+					resultVersion = latestVersion
+				}
+				return nil
+			},
+		)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("cannot sync document: %w", err)
+		}
+
+		return document, resultVersion, externalLink, nil
+	}
+
 	contentJSON, pdfBytes, err := s.fetchFileContentAndPDF(ctx, driveSvc, f.Id, f.MimeType)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("cannot fetch file content: %w", err)
@@ -762,52 +997,7 @@ func (s *GoogleDriveService) SyncDocument(
 	}
 	fileRecord.FileSize = fileSize
 
-	approvalState := s.getDocumentApprovalState(ctx, driveSvc, f.Id)
-
-	var (
-		targetStatus coredata.DocumentVersionStatus
-		targetMajor  int
-		targetMinor  int
-		publishedAt  *time.Time
-	)
-
-	switch approvalState.status {
-	case coredata.DocumentVersionStatusPublished:
-		targetStatus = coredata.DocumentVersionStatusPublished
-		m, n, ok := parseVersionFromFileName(f.Name)
-		if ok {
-			targetMajor, targetMinor = m, n
-		} else if document.CurrentPublishedMajor != nil && document.CurrentPublishedMinor != nil {
-			targetMajor, targetMinor = *document.CurrentPublishedMajor, *document.CurrentPublishedMinor
-		} else {
-			targetMajor, targetMinor = 1, 0
-		}
-		if approvalState.completeTime != nil {
-			publishedAt = approvalState.completeTime
-		} else {
-			publishedAt = &now
-		}
-
-	case coredata.DocumentVersionStatusPendingApproval:
-		targetStatus = coredata.DocumentVersionStatusPendingApproval
-		m, n, ok := parseVersionFromFileName(f.Name)
-		if ok {
-			targetMajor, targetMinor = m, n
-		} else if document.CurrentPublishedMajor != nil && document.CurrentPublishedMinor != nil {
-			targetMajor, targetMinor = *document.CurrentPublishedMajor, *document.CurrentPublishedMinor + 1
-		} else {
-			targetMajor, targetMinor = 1, 0
-		}
-		publishedAt = nil
-
-	default: // Draft
-		targetStatus = coredata.DocumentVersionStatusDraft
-		targetMajor, targetMinor = 0, 1
-		publishedAt = nil
-	}
-
 	var resultVersion *coredata.DocumentVersion
-
 	err = s.svc.pg.WithTx(
 		ctx,
 		func(ctx context.Context, tx pg.Tx) error {
@@ -815,35 +1005,11 @@ func (s *GoogleDriveService) SyncDocument(
 				return fmt.Errorf("cannot insert file record: %w", err)
 			}
 
-			var existingVersions coredata.DocumentVersions
-			cursor := page.NewCursor(
-				100,
-				nil,
-				page.Head,
-				page.OrderBy[coredata.DocumentVersionOrderField]{
-					Field:     coredata.DocumentVersionOrderFieldCreatedAt,
-					Direction: page.OrderDirectionAsc,
-				},
-			)
-			if err := existingVersions.LoadByDocumentID(ctx, tx, scope, document.ID, cursor, coredata.NewDocumentVersionFilter()); err != nil {
-				return fmt.Errorf("cannot load document versions: %w", err)
-			}
-
-			var (
-				exactMatch         *coredata.DocumentVersion
-				activeNonPublished *coredata.DocumentVersion
-				latestVersion      *coredata.DocumentVersion
-			)
-
+			var exactMatch *coredata.DocumentVersion
 			for _, v := range existingVersions {
-				if latestVersion == nil || v.CreatedAt.After(latestVersion.CreatedAt) {
-					latestVersion = v
-				}
 				if v.Major == targetMajor && v.Minor == targetMinor {
 					exactMatch = v
-				}
-				if v.Status == coredata.DocumentVersionStatusDraft || v.Status == coredata.DocumentVersionStatusPendingApproval {
-					activeNonPublished = v
+					break
 				}
 			}
 
@@ -860,6 +1026,19 @@ func (s *GoogleDriveService) SyncDocument(
 				if latestVersion.DocumentType != "" {
 					docType = latestVersion.DocumentType
 				}
+			}
+
+			findAvailableMinor := func(major, minor int, excludeID gid.GID) int {
+				used := make(map[int]bool)
+				for _, v := range existingVersions {
+					if (excludeID == (gid.GID{}) || v.ID != excludeID) && v.Major == major {
+						used[v.Minor] = true
+					}
+				}
+				for used[minor] {
+					minor++
+				}
+				return minor
 			}
 
 			if targetStatus == coredata.DocumentVersionStatusPublished {
@@ -921,22 +1100,13 @@ func (s *GoogleDriveService) SyncDocument(
 				document.CurrentPublishedMajor = &targetMajor
 				document.CurrentPublishedMinor = &targetMinor
 				document.Status = coredata.DocumentStatusActive
+				document.UpdatedAt = now
+				if err := document.Update(ctx, tx, scope); err != nil {
+					return fmt.Errorf("cannot update document: %w", err)
+				}
 			} else {
 				// targetStatus is PENDING_APPROVAL or DRAFT
-				findAvailableMinor := func(major, minor int, excludeID gid.GID) int {
-					used := make(map[int]bool)
-					for _, v := range existingVersions {
-						if (excludeID == (gid.GID{}) || v.ID != excludeID) && v.Major == major {
-							used[v.Minor] = true
-						}
-					}
-					for used[minor] {
-						minor++
-					}
-					return minor
-				}
-
-				if activeNonPublished != nil {
+				if activeNonPublished != nil && (lastPublishedVersion == nil || activeNonPublished.CreatedAt.After(lastPublishedVersion.CreatedAt)) {
 					targetMinor = findAvailableMinor(targetMajor, targetMinor, activeNonPublished.ID)
 					activeNonPublished.Major = targetMajor
 					activeNonPublished.Minor = targetMinor
@@ -950,6 +1120,11 @@ func (s *GoogleDriveService) SyncDocument(
 					}
 					resultVersion = activeNonPublished
 				} else {
+					if activeNonPublished != nil {
+						if err := activeNonPublished.Delete(ctx, tx, scope); err != nil {
+							return fmt.Errorf("cannot delete superseded active version: %w", err)
+						}
+					}
 					targetMinor = findAvailableMinor(targetMajor, targetMinor, gid.GID{})
 					newVersion := &coredata.DocumentVersion{
 						ID:             gid.New(scope.GetTenantID(), coredata.DocumentVersionEntityType),
@@ -979,13 +1154,8 @@ func (s *GoogleDriveService) SyncDocument(
 			externalLink.ExternalURL = f.WebViewLink
 			externalLink.MimeType = &f.MimeType
 			externalLink.LastSyncedAt = now
+			externalLink.Metadata = serializeGoogleDriveLinkMetadata(linkMeta)
 			externalLink.UpdatedAt = now
-
-			document.UpdatedAt = now
-
-			if err := document.Update(ctx, tx, scope); err != nil {
-				return fmt.Errorf("cannot update document: %w", err)
-			}
 			if err := externalLink.Update(ctx, tx, scope); err != nil {
 				return fmt.Errorf("cannot update external link: %w", err)
 			}

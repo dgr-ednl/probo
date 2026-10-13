@@ -21,8 +21,11 @@
 package probo
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,4 +138,43 @@ func TestParseVersionFromFileName(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestGoogleDriveLinkMetadata(t *testing.T) {
+	t.Parallel()
+
+	t.Run(
+		"empty json parses into zero value",
+		func(t *testing.T) {
+			t.Parallel()
+
+			meta := parseGoogleDriveLinkMetadata(nil)
+			assert.Empty(t, meta.LastPublishedApprovalID)
+			assert.Nil(t, meta.LastPublishedApprovalTime)
+
+			meta = parseGoogleDriveLinkMetadata(json.RawMessage("{}"))
+			assert.Empty(t, meta.LastPublishedApprovalID)
+			assert.Nil(t, meta.LastPublishedApprovalTime)
+		},
+	)
+
+	t.Run(
+		"serialization roundtrip",
+		func(t *testing.T) {
+			t.Parallel()
+
+			now := time.Now().UTC().Truncate(time.Second)
+			original := googleDriveLinkMetadata{
+				LastPublishedApprovalID:   "approval-123",
+				LastPublishedApprovalTime: &now,
+			}
+
+			raw := serializeGoogleDriveLinkMetadata(original)
+			parsed := parseGoogleDriveLinkMetadata(raw)
+
+			assert.Equal(t, original.LastPublishedApprovalID, parsed.LastPublishedApprovalID)
+			require.NotNil(t, parsed.LastPublishedApprovalTime)
+			assert.True(t, original.LastPublishedApprovalTime.Equal(*parsed.LastPublishedApprovalTime))
+		},
+	)
 }
